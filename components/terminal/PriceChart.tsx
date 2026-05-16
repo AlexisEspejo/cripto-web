@@ -2,9 +2,31 @@
 import { useKlines } from '@/hooks/useKlines';
 import { useUIStore } from '@/stores/ui-store';
 import { ema } from '@/lib/indicators';
-import { fmtDate, fmtPct, fmtUSD } from '@/lib/formatters';
+import { fmtDate, fmtPct } from '@/lib/formatters';
 import type { KlineInterval } from '@/lib/types';
+import { ASSETS, type AssetSpec } from '@/lib/asset-registry';
+
 import { useMemo } from 'react';
+
+function fmtPriceFor(asset: AssetSpec, v: number): string {
+  if (asset.decimals === 0) return '$' + Math.round(v).toLocaleString('en-US');
+  return (
+    '$' +
+    v.toLocaleString('en-US', {
+      minimumFractionDigits: asset.decimals,
+      maximumFractionDigits: asset.decimals,
+    })
+  );
+}
+
+function shortAxisFor(asset: AssetSpec, v: number): string {
+  if (asset.decimals === 0) {
+    if (Math.abs(v) >= 1000) return '$' + (v / 1000).toFixed(0) + 'K';
+    return '$' + v.toFixed(0);
+  }
+  if (asset.decimals >= 4) return v.toFixed(asset.decimals);
+  return '$' + v.toFixed(2);
+}
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -24,10 +46,10 @@ ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip,
 
 const TF_OPTIONS: KlineInterval[] = ['1h', '4h', '1d', '1w'];
 
-export function PriceChart() {
+export function PriceChart({ asset = ASSETS.BTC! }: { asset?: AssetSpec }) {
   const interval = useUIStore(s => s.chartInterval);
   const setInterval = useUIStore(s => s.setChartInterval);
-  const { data } = useKlines(interval);
+  const { data } = useKlines(interval, asset.id);
 
   const { labels, closes, e50, e200, stats } = useMemo(() => {
     if (!data || data.length === 0) {
@@ -53,7 +75,7 @@ export function PriceChart() {
     labels,
     datasets: [
       {
-        label: 'BTC/USD',
+        label: `${asset.symbol}/${asset.quote}`,
         data: closes,
         borderColor: '#f7931a',
         backgroundColor: (ctx) => {
@@ -112,7 +134,7 @@ export function PriceChart() {
           label: (ctx) => {
             if (ctx.raw == null) return '';
             const v = ctx.raw as number;
-            return `  ${(ctx.dataset.label ?? '').padEnd(8)}  $${v.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+            return `  ${(ctx.dataset.label ?? '').padEnd(8)}  ${fmtPriceFor(asset, v)}`;
           },
         },
       },
@@ -129,7 +151,7 @@ export function PriceChart() {
           font: { size: 10 },
           color: '#666',
           padding: 8,
-          callback: (v) => '$' + (Number(v) / 1000).toFixed(0) + 'K',
+          callback: (v) => shortAxisFor(asset, Number(v)),
         },
         border: { display: false },
       },
@@ -145,7 +167,7 @@ export function PriceChart() {
               § 04 · Charts Técnicos
             </div>
             <h2 className="title-serif mt-1 text-2xl">
-              BTC/USD · estructura de <em>precio</em>
+              {asset.symbol}/{asset.quote} · estructura de <em>precio</em>
             </h2>
           </div>
           <div className="flex items-center gap-1 rounded-sm border border-border-strong bg-bg-card p-1">
@@ -167,8 +189,8 @@ export function PriceChart() {
 
         {stats && (
           <div className="mt-4 flex flex-wrap gap-6 border-b border-border pb-3 text-xs">
-            <Stat label="High" value={fmtUSD(stats.high)} />
-            <Stat label="Low" value={fmtUSD(stats.low)} />
+            <Stat label="High" value={fmtPriceFor(asset, stats.high)} />
+            <Stat label="Low" value={fmtPriceFor(asset, stats.low)} />
             <Stat
               label="Change"
               value={fmtPct(stats.chg)}
@@ -179,7 +201,7 @@ export function PriceChart() {
 
         <div className="mt-4 h-[380px] sm:h-[420px]">
           {data ? (
-            <Line data={chartData} options={options} aria-label="BTC price chart" />
+            <Line data={chartData} options={options} aria-label={`${asset.symbol} price chart`} />
           ) : (
             <div className="skeleton h-full w-full" />
           )}

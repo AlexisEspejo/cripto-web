@@ -2,9 +2,11 @@
 import { useNews } from '@/hooks/useNews';
 import { fmtRelative } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
+import { ASSETS, type AssetSpec } from '@/lib/asset-registry';
 
-export function NewsFeed() {
-  const { data, isError } = useNews();
+export function NewsFeed({ asset = ASSETS.BTC! }: { asset?: AssetSpec }) {
+  const { data, isError } = useNews(asset.hasNews);
+  if (!asset.hasNews) return null;
 
   return (
     <section className="border-b border-border-strong px-4 py-10 sm:px-6">

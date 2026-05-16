@@ -1,27 +1,21 @@
 import { NextResponse } from 'next/server';
-import { fetchTicker24h, type Ticker24h } from '@/lib/api-clients/binance';
 import { fetchAth } from '@/lib/api-clients/coingecko';
-import { krakenTicker24h } from '@/lib/api-clients/kraken';
+import { fetchAssetTicker } from '@/lib/asset-fetchers';
+import { ASSETS, buildCryptoSpec, resolveAsset } from '@/lib/asset-registry';
 import type { PriceData } from '@/lib/types';
 
 export const revalidate = 30;
 export const dynamic = 'force-dynamic';
-export const runtime = 'edge';
 
-async function getTicker(): Promise<{ ticker: Ticker24h; source: 'binance' | 'kraken' }> {
+export async function GET(req: Request) {
+  const url = new URL(req.url);
+  const assetParam = (url.searchParams.get('asset') ?? 'BTC').toUpperCase();
+  const asset = resolveAsset(assetParam) ?? buildCryptoSpec(assetParam, assetParam);
   try {
-    return { ticker: await fetchTicker24h(), source: 'binance' };
-  } catch (err) {
-    console.warn(
-      JSON.stringify({ route: '/api/price', binance_failed: err instanceof Error ? err.message : String(err) }),
-    );
-    return { ticker: await krakenTicker24h(), source: 'kraken' };
-  }
-}
-
-export async function GET() {
-  try {
-    const [{ ticker }, ath] = await Promise.all([getTicker(), fetchAth()]);
+    const tickerP = fetchAssetTicker(asset);
+    const athP =
+      asset.id === ASSETS.BTC!.id ? fetchAth('bitcoin') : Promise.resolve(null);
+    const [ticker, ath] = await Promise.all([tickerP, athP]);
     const price = parseFloat(ticker.lastPrice);
     const data: PriceData = {
       price,
@@ -42,11 +36,12 @@ export async function GET() {
     });
   } catch (err) {
     console.error(
-      JSON.stringify({ route: '/api/price', error: err instanceof Error ? err.message : String(err) }),
+      JSON.stringify({
+        route: '/api/price',
+        asset: asset.id,
+        error: err instanceof Error ? err.message : String(err),
+      }),
     );
-    return NextResponse.json(
-      { ok: false, error: 'price_fetch_failed' },
-      { status: 502 },
-    );
+    return NextResponse.json({ ok: false, error: 'price_fetch_failed' }, { status: 502 });
   }
 }

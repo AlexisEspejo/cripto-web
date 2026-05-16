@@ -9,11 +9,12 @@ async function fetchNewsClient(): Promise<NewsResponse> {
   return (await r.json()) as NewsResponse;
 }
 
-export function useNews() {
+export function useNews(enabled = true) {
   return useQuery({
     queryKey: ['news'],
     queryFn: fetchNewsClient,
     refetchInterval: REFRESH.NEWS_MS,
     staleTime: REFRESH.NEWS_MS - 30_000,
+    enabled,
   });
 }

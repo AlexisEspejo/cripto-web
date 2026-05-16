@@ -7,21 +7,25 @@ import { fmtBig, fmtPct, fmtTime, fmtUSD } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import { useEffect, useRef, useState } from 'react';
 
+import type { AssetSpec } from '@/lib/asset-registry';
+import { ASSETS } from '@/lib/asset-registry';
+
 type Health = 'live' | 'degraded' | 'offline';
 
-function useHealth(): Health {
-  const price = usePrice();
-  const klines = useKlines('1d');
-  const news = useNews();
-  const ok = [price.data, klines.data, news.data].filter(Boolean).length;
-  if (ok === 3) return 'live';
-  if (ok >= 1) return 'degraded';
+function useHealth(asset: AssetSpec): Health {
+  const price = usePrice(asset.id);
+  const klines = useKlines('1d', asset.id);
+  const news = useNews(asset.hasNews);
+  const required = asset.hasNews ? 3 : 2;
+  const have = [price.data, klines.data, asset.hasNews ? news.data : true].filter(Boolean).length;
+  if (have >= required) return 'live';
+  if (have >= 1) return 'degraded';
   return 'offline';
 }
 
-export function TopBar() {
-  const { data } = usePrice();
-  const health = useHealth();
+export function TopBar({ asset = ASSETS.BTC! }: { asset?: AssetSpec }) {
+  const { data } = usePrice(asset.id);
+  const health = useHealth(asset);
   const [now, setNow] = useState<number>(() => Date.now());
   const prevPrice = useRef<number | null>(null);
   const [flash, setFlash] = useState<'' | 'flash-up' | 'flash-down'>('');
@@ -48,19 +52,19 @@ export function TopBar() {
     <header className="sticky top-0 z-30 border-b border-border-strong bg-bg-elev/90 backdrop-blur">
       <div className="mx-auto flex max-w-[1400px] items-center gap-6 px-4 py-3 sm:px-6">
         <Link href="/" className="title-serif text-base italic text-text">
-          <span className="not-italic font-semibold text-brand">BTC</span>
+          <span className="not-italic font-semibold text-brand">{asset.symbol}</span>
           <span className="mx-1 text-text-mute">/</span>
           <span className="text-xs uppercase tracking-widest text-text-dim not-italic">
             LIVE · REAL-TIME
           </span>
         </Link>
 
-        <Link
-          href="/guia"
-          className="hidden sm:inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-text-mute hover:text-brand transition-colors"
-        >
-          <span aria-hidden>§</span> Guía
-        </Link>
+        <nav className="hidden md:flex items-center gap-4 text-[10px] uppercase tracking-[0.2em] text-text-mute">
+          <Link href="/top" className="hover:text-brand transition-colors">Top 20</Link>
+          <Link href="/eurusd" className="hover:text-brand transition-colors">EUR/USD</Link>
+          <Link href="/proyecciones" className="hover:text-brand transition-colors">Proyecciones</Link>
+          <Link href="/guia" className="hover:text-brand transition-colors">Guía</Link>
+        </nav>
 
         <div className="ml-auto flex items-center gap-5 text-xs">
           <div className="hidden lg:flex items-center gap-5 text-text-dim">

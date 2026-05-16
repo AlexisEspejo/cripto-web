@@ -1,8 +1,20 @@
 'use client';
 import { useConsensus } from '@/hooks/useConsensus';
-import { fmtTime, fmtUSD } from '@/lib/formatters';
+import { fmtTime } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import type { IndicatorResult, Verdict } from '@/lib/types';
+import { ASSETS, type AssetSpec } from '@/lib/asset-registry';
+
+function fmtPriceFor(asset: AssetSpec, v: number): string {
+  if (asset.decimals === 0) return '$' + Math.round(v).toLocaleString('en-US');
+  return (
+    '$' +
+    v.toLocaleString('en-US', {
+      minimumFractionDigits: asset.decimals,
+      maximumFractionDigits: asset.decimals,
+    })
+  );
+}
 
 const VERDICT_LABEL: Record<Verdict, string> = {
   STRONG_BUY: 'STRONG BUY',
@@ -28,8 +40,8 @@ const verdictGlow: Record<Verdict, string> = {
   STRONG_SELL: 'drop-shadow-[0_0_16px_rgba(255,71,87,0.4)]',
 };
 
-export function VerdictPanel() {
-  const { data, isLoading, isError } = useConsensus();
+export function VerdictPanel({ asset = ASSETS.BTC! }: { asset?: AssetSpec }) {
+  const { data, isLoading, isError } = useConsensus(asset.id);
 
   if (isLoading) {
     return (
@@ -115,12 +127,12 @@ export function VerdictPanel() {
             <div className="mt-4 space-y-2 text-sm">
               <Level
                 label="Entry Zone"
-                value={`${fmtUSD(data.levels.entry.from)} – ${fmtUSD(data.levels.entry.to)}`}
+                value={`${fmtPriceFor(asset, data.levels.entry.from)} – ${fmtPriceFor(asset, data.levels.entry.to)}`}
               />
-              <Level label="Stop Loss" value={`${fmtUSD(data.levels.stop)} (${pct(data.levels.stop)})`} color="text-down" />
-              <Level label="Target 1" value={`${fmtUSD(data.levels.tp1)} (${pct(data.levels.tp1)})`} color="text-up" />
-              <Level label="Target 2" value={`${fmtUSD(data.levels.tp2)} (${pct(data.levels.tp2)})`} color="text-up" />
-              <Level label="Target 3" value={`${fmtUSD(data.levels.tp3)} (${pct(data.levels.tp3)})`} color="text-up" />
+              <Level label="Stop Loss" value={`${fmtPriceFor(asset, data.levels.stop)} (${pct(data.levels.stop)})`} color="text-down" />
+              <Level label="Target 1" value={`${fmtPriceFor(asset, data.levels.tp1)} (${pct(data.levels.tp1)})`} color="text-up" />
+              <Level label="Target 2" value={`${fmtPriceFor(asset, data.levels.tp2)} (${pct(data.levels.tp2)})`} color="text-up" />
+              <Level label="Target 3" value={`${fmtPriceFor(asset, data.levels.tp3)} (${pct(data.levels.tp3)})`} color="text-up" />
             </div>
             <p className="mt-4 border-t border-border pt-3 text-[11px] italic text-text-mute">
               Niveles auto-calculados a partir de Bollinger, EMAs y posición de consenso. No constituyen recomendación de inversión.

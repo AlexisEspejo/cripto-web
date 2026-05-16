@@ -6,6 +6,43 @@ versioning [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Added (multi-asset)
+
+- **Asset registry** (`lib/asset-registry.ts`) con specs canónicas y un
+  blocklist de stablecoins + wrapped tokens.
+- **Yahoo Finance client** (`lib/api-clients/yahoo.ts`) como fallback
+  para crypto y fuente única para forex (EUR/USD).
+- **Dispatcher unificado** (`lib/asset-fetchers.ts`) que enruta cada
+  asset al mejor exchange disponible: Binance → Kraken → Yahoo
+  (crypto), Yahoo only (FX).
+- **Top 20 cripto** (`/top`) — toma top 100 de CoinGecko, filtra
+  stablecoins (USDT/USDC/DAI/…) y wrapped/staked tokens (WBTC, stETH,
+  WETH, rETH, …), muestra grid responsive con sparkline, market cap,
+  vol 24h y link al análisis completo.
+- **EUR/USD** (`/eurusd`) — mismo dashboard de análisis (10
+  indicadores + verdict + niveles + charts) sobre datos forex.
+- **Asset dinámico** (`/asset/[id]`) — análisis completo para
+  cualquier símbolo del top 100 (e.g., `/asset/SOL`, `/asset/AVAX`).
+- **Proyecciones** (`/proyecciones`):
+  - Selector de activo + horizonte (7d, 30d, 90d, 180d, 365d) + monto.
+  - Análisis de tendencia: regresión lineal con R², pendiente diaria,
+    soporte/resistencia Donchian, régimen de volatilidad ATR,
+    volatilidad y retorno anualizados.
+  - Simulación Monte Carlo (GBM, 1 000 caminos) sobre retornos
+    logarítmicos históricos, con bandas P5/P25/P50/P75/P95.
+  - Tarjetas de escenario: base (P50), alcista (P95), bajista (P5)
+    mostrando valor proyectado y % return.
+  - Reutiliza VerdictPanel + IndicatorsGrid para el mismo análisis
+    técnico del §01.
+- API routes generalizadas (`?asset=ID`) en `/api/price`,
+  `/api/klines/[interval]`, `/api/consensus`, más `/api/markets`.
+- Hooks (`usePrice`, `useKlines`, `useConsensus`, `useMarkets`) y
+  componentes (`TopBar`, `PriceHero`, `AlertsBar`, `VerdictPanel`,
+  `SignalsGrid`, `IndicatorsGrid`, `PriceChart`, `RSIChart`,
+  `NewsFeed`) aceptan ahora una `AssetSpec` opcional.
+- Tests Monte Carlo + regresión de tendencia (47 totales).
+- Navegación en TopBar: Top 20 · EUR/USD · Proyecciones · Guía.
+
 ### Added
 
 - **Sentiment de noticias como indicador #11** en el consenso técnico

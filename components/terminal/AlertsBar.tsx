@@ -4,14 +4,15 @@ import { generateSignal, DEFAULT_HORIZONS } from '@/lib/signals';
 import { ema, rsi } from '@/lib/indicators';
 import { useMemo } from 'react';
 import { cn } from '@/lib/utils';
+import { ASSETS, type AssetSpec } from '@/lib/asset-registry';
 
 type Alert = { kind: 'bull' | 'bear' | 'warn'; text: string };
 
-export function AlertsBar() {
-  const h1 = useKlines('1h');
-  const h4 = useKlines('4h');
-  const d = useKlines('1d');
-  const w = useKlines('1w');
+export function AlertsBar({ asset = ASSETS.BTC! }: { asset?: AssetSpec }) {
+  const h1 = useKlines('1h', asset.id);
+  const h4 = useKlines('4h', asset.id);
+  const d = useKlines('1d', asset.id);
+  const w = useKlines('1w', asset.id);
 
   const alerts = useMemo<Alert[]>(() => {
     const out: Alert[] = [];
