@@ -4,6 +4,7 @@ import { TopBar } from '@/components/terminal/TopBar';
 import { Footer } from '@/components/terminal/Footer';
 import { VerdictPanel } from '@/components/terminal/VerdictPanel';
 import { IndicatorsGrid } from '@/components/terminal/IndicatorsGrid';
+import { PatternsPanel } from '@/components/terminal/PatternsPanel';
 import { ProjectionChart } from '@/components/projections/ProjectionChart';
 import { useKlines } from '@/hooks/useKlines';
 import { useMarkets } from '@/hooks/useMarkets';
@@ -378,6 +379,7 @@ export default function ProjectionsPage() {
 
       <VerdictPanel asset={asset} />
       <IndicatorsGrid asset={asset} />
+      <PatternsPanel asset={asset} />
 
       <Footer />
     </main>

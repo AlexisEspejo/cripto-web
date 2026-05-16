@@ -3,6 +3,8 @@ import { useKlines } from '@/hooks/useKlines';
 import { useDisplayQuote } from '@/hooks/useDisplayQuote';
 import { useUIStore } from '@/stores/ui-store';
 import { ema } from '@/lib/indicators';
+import { analyseAdvanced } from '@/lib/projections';
+import { deriveProjection } from '@/lib/pattern-projections';
 import { fmtDate, fmtPct } from '@/lib/formatters';
 import type { KlineInterval } from '@/lib/types';
 import { ASSETS, type AssetSpec } from '@/lib/asset-registry';
@@ -30,7 +32,9 @@ const TF_OPTIONS: KlineInterval[] = ['1h', '4h', '1d', '1w'];
 export function PriceChart({ asset = ASSETS.BTC! }: { asset?: AssetSpec }) {
   const interval = useUIStore(s => s.chartInterval);
   const setInterval = useUIStore(s => s.setChartInterval);
+  const overlayEnabled = useUIStore(s => s.patternOverlayEnabled);
   const { data } = useKlines(interval, asset.id);
+  const dailyKlines = useKlines('1d', asset.id);
   const dq = useDisplayQuote();
   const fmtPrice = (v: number) => dq.formatForAsset(v, asset);
   const convertForAsset = (v: number): number => {
@@ -61,6 +65,63 @@ export function PriceChart({ asset = ASSETS.BTC! }: { asset?: AssetSpec }) {
   const displayCloses = closes.map(convertForAsset);
   const displayE50 = e50.map(v => (v == null ? null : convertForAsset(v)));
   const displayE200 = e200.map(v => (v == null ? null : convertForAsset(v)));
+
+  // Pattern projection overlay (computed from daily klines so it stays stable
+  // when the user flips the chart timeframe).
+  const overlay = useMemo(() => {
+    if (!overlayEnabled || !dailyKlines.data || dailyKlines.data.length < 60) return null;
+    const adv = analyseAdvanced(dailyKlines.data, '1d', 60);
+    if (!adv) return null;
+    const proj = deriveProjection({
+      lastPrice: adv.lastPrice,
+      support: adv.support,
+      resistance: adv.resistance,
+      patterns: adv.patterns,
+      trend: adv.trend,
+    });
+    return {
+      target: convertForAsset(proj.target),
+      stop: convertForAsset(proj.stop),
+      direction: proj.direction,
+      targetPct: proj.targetPct,
+      stopPct: proj.stopPct,
+    };
+  }, [overlayEnabled, dailyKlines.data, asset, dq.fxRate, dq.quote]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const overlayDatasets = overlay
+    ? [
+        {
+          label: `Target (${overlay.targetPct >= 0 ? '+' : ''}${overlay.targetPct.toFixed(2)}%)`,
+          data: labels.map(() => overlay.target),
+          borderColor:
+            overlay.direction === 'bullish'
+              ? '#00d68f'
+              : overlay.direction === 'bearish'
+              ? '#ff4757'
+              : '#ffb800',
+          borderWidth: 1.6,
+          borderDash: [6, 4],
+          tension: 0,
+          fill: false,
+          pointRadius: 0,
+        },
+        {
+          label: `Stop (${overlay.stopPct >= 0 ? '+' : ''}${overlay.stopPct.toFixed(2)}%)`,
+          data: labels.map(() => overlay.stop),
+          borderColor:
+            overlay.direction === 'bullish'
+              ? '#ff4757'
+              : overlay.direction === 'bearish'
+              ? '#00d68f'
+              : '#8a8a8a',
+          borderWidth: 1.4,
+          borderDash: [2, 4],
+          tension: 0,
+          fill: false,
+          pointRadius: 0,
+        },
+      ]
+    : [];
 
   const chartData: ChartData<'line'> = {
     labels,
@@ -103,6 +164,7 @@ export function PriceChart({ asset = ASSETS.BTC! }: { asset?: AssetSpec }) {
         fill: false,
         pointRadius: 0,
       },
+      ...overlayDatasets,
     ],
   };
 

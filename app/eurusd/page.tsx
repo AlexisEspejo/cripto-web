@@ -6,6 +6,7 @@ import { AlertsBar } from '@/components/terminal/AlertsBar';
 import { VerdictPanel } from '@/components/terminal/VerdictPanel';
 import { SignalsGrid } from '@/components/terminal/SignalsGrid';
 import { IndicatorsGrid } from '@/components/terminal/IndicatorsGrid';
+import { PatternsPanel } from '@/components/terminal/PatternsPanel';
 import { PriceChart } from '@/components/terminal/PriceChart';
 import { RSIChart } from '@/components/terminal/RSIChart';
 import { Footer } from '@/components/terminal/Footer';
@@ -79,6 +80,7 @@ export default function EurUsdPage() {
       <VerdictPanel asset={asset} />
       <SignalsGrid asset={asset} />
       <IndicatorsGrid asset={asset} />
+      <PatternsPanel asset={asset} />
       <PriceChart asset={asset} />
       <RSIChart asset={asset} />
       <Footer />
