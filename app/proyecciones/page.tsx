@@ -463,16 +463,53 @@ function MetricsGrid({
   const hurstTone =
     analysis.hurst > 0.55 ? 'up' : analysis.hurst < 0.45 ? 'warn' : 'neutral';
 
+  const [open, setOpen] = useState(true);
+
+  // Headline summary shown when collapsed
+  const summary = (
+    <span className="hidden sm:inline-flex items-center gap-3 ml-3 text-xs text-text-dim tabular-nums">
+      <SummaryPill label="Sharpe" value={analysis.sharpe.toFixed(2)} tone={sharpeTone} />
+      <SummaryPill label="DD" value={`${analysis.maxDrawdownPct.toFixed(0)}%`} tone={ddTone === 'down' ? 'down' : 'neutral'} />
+      <SummaryPill label="Win" value={`${analysis.winRatePct.toFixed(0)}%`} tone={winTone} />
+      <SummaryPill label="Hurst" value={analysis.hurst.toFixed(2)} tone={hurstTone} />
+    </span>
+  );
+
   return (
     <div className="mt-8 space-y-6">
-      <div>
-        <div className="text-[10px] uppercase tracking-[0.25em] text-brand">
-          § Análisis robusto · ventana 60 velas
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        aria-expanded={open}
+        aria-controls="metrics-collapsable"
+        className="group flex w-full items-baseline justify-between gap-3 text-left"
+      >
+        <div className="flex-1 min-w-0">
+          <div className="text-[10px] uppercase tracking-[0.25em] text-brand">
+            § Análisis robusto · ventana 60 velas
+          </div>
+          <h2 className="title-serif mt-1 text-2xl flex items-baseline flex-wrap">
+            Métricas <em>&nbsp;estadísticas&nbsp;</em> sobre {interval.toUpperCase()}
+            {!open && summary}
+          </h2>
         </div>
-        <h2 className="title-serif mt-1 text-2xl">
-          Métricas <em>estadísticas</em> sobre {interval.toUpperCase()}
-        </h2>
-      </div>
+        <span
+          className={cn(
+            'shrink-0 inline-flex items-center gap-1.5 rounded-sm border border-border-strong bg-bg-card px-2.5 py-1.5 text-[10px] uppercase tracking-wider text-text-dim group-hover:text-brand group-hover:border-brand transition-colors',
+          )}
+        >
+          {open ? 'Ocultar' : 'Mostrar'}
+          <span className={cn('inline-block transition-transform', open ? 'rotate-180' : '')} aria-hidden>
+            ▾
+          </span>
+        </span>
+      </button>
+
+      <div
+        id="metrics-collapsable"
+        hidden={!open}
+        className={cn('space-y-6', !open && 'hidden')}
+      >
 
       {/* Group 1: Trend & structure */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -591,7 +628,27 @@ function MetricsGrid({
           <>Valores monetarios se muestran en USD (cotización nativa del activo).</>
         )}
       </div>
+      </div>
     </div>
+  );
+}
+
+function SummaryPill({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone: 'up' | 'down' | 'warn' | 'neutral';
+}) {
+  const color =
+    tone === 'up' ? 'text-up' : tone === 'down' ? 'text-down' : tone === 'warn' ? 'text-warn' : 'text-text';
+  return (
+    <span className="inline-flex items-baseline gap-1 not-italic">
+      <span className="text-[10px] uppercase tracking-wider text-text-mute">{label}</span>
+      <span className={cn('tabular-nums font-semibold', color)}>{value}</span>
+    </span>
   );
 }
 
