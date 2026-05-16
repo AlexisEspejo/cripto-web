@@ -1,32 +1,24 @@
 import { NextResponse } from 'next/server';
-import { fetchKlines } from '@/lib/api-clients/binance';
-import { krakenKlines } from '@/lib/api-clients/kraken';
+import { fetchAssetKlines } from '@/lib/asset-fetchers';
+import { buildCryptoSpec, resolveAsset } from '@/lib/asset-registry';
 import { generateConsensus } from '@/lib/consensus';
 import { KLINES_LIMITS } from '@/lib/constants';
+import { getNewsNetScore } from '@/lib/news-aggregate';
 
 export const revalidate = 300;
 export const dynamic = 'force-dynamic';
-export const runtime = 'edge';
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
-  const symbol = (url.searchParams.get('symbol') ?? 'BTC').toUpperCase() + 'USDT';
+  const assetParam = (url.searchParams.get('asset') ?? 'BTC').toUpperCase();
+  const asset = resolveAsset(assetParam) ?? buildCryptoSpec(assetParam, assetParam);
+  const skipNews = url.searchParams.get('news') === 'off';
   try {
-    let klines;
-    try {
-      klines = await fetchKlines('1d', KLINES_LIMITS['1d'], symbol);
-    } catch (err) {
-      console.warn(
-        JSON.stringify({
-          route: '/api/consensus',
-          binance_failed: err instanceof Error ? err.message : String(err),
-        }),
-      );
-      // Kraken fallback only supports BTC for now.
-      if (symbol !== 'BTCUSDT') throw err;
-      klines = await krakenKlines('1d', KLINES_LIMITS['1d']);
-    }
-    const consensus = generateConsensus(klines);
+    const klinesP = fetchAssetKlines(asset, '1d', KLINES_LIMITS['1d']);
+    const newsP: Promise<number | null> =
+      skipNews || !asset.hasNews ? Promise.resolve(null) : getNewsNetScore(4000);
+    const [klines, newsNetScore] = await Promise.all([klinesP, newsP]);
+    const consensus = generateConsensus(klines, { newsNetScore });
     return NextResponse.json(consensus, {
       headers: {
         'Cache-Control': 's-maxage=300, stale-while-revalidate=600',
@@ -36,6 +28,7 @@ export async function GET(req: Request) {
     console.error(
       JSON.stringify({
         route: '/api/consensus',
+        asset: asset.id,
         error: err instanceof Error ? err.message : String(err),
       }),
     );

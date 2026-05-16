@@ -4,6 +4,73 @@ Todos los cambios notables al proyecto se documentan aquí.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/),
 versioning [SemVer](https://semver.org/).
 
+## [Unreleased]
+
+### Added (multi-asset)
+
+- **Asset registry** (`lib/asset-registry.ts`) con specs canónicas y un
+  blocklist de stablecoins + wrapped tokens.
+- **Yahoo Finance client** (`lib/api-clients/yahoo.ts`) como fallback
+  para crypto y fuente única para forex (EUR/USD).
+- **Dispatcher unificado** (`lib/asset-fetchers.ts`) que enruta cada
+  asset al mejor exchange disponible: Binance → Kraken → Yahoo
+  (crypto), Yahoo only (FX).
+- **Top 20 cripto** (`/top`) — toma top 100 de CoinGecko, filtra
+  stablecoins (USDT/USDC/DAI/…) y wrapped/staked tokens (WBTC, stETH,
+  WETH, rETH, …), muestra grid responsive con sparkline, market cap,
+  vol 24h y link al análisis completo.
+- **EUR/USD** (`/eurusd`) — mismo dashboard de análisis (10
+  indicadores + verdict + niveles + charts) sobre datos forex.
+- **Asset dinámico** (`/asset/[id]`) — análisis completo para
+  cualquier símbolo del top 100 (e.g., `/asset/SOL`, `/asset/AVAX`).
+- **Proyecciones** (`/proyecciones`):
+  - Selector de activo + horizonte (7d, 30d, 90d, 180d, 365d) + monto.
+  - Análisis de tendencia: regresión lineal con R², pendiente diaria,
+    soporte/resistencia Donchian, régimen de volatilidad ATR,
+    volatilidad y retorno anualizados.
+  - Simulación Monte Carlo (GBM, 1 000 caminos) sobre retornos
+    logarítmicos históricos, con bandas P5/P25/P50/P75/P95.
+  - Tarjetas de escenario: base (P50), alcista (P95), bajista (P5)
+    mostrando valor proyectado y % return.
+  - Reutiliza VerdictPanel + IndicatorsGrid para el mismo análisis
+    técnico del §01.
+- API routes generalizadas (`?asset=ID`) en `/api/price`,
+  `/api/klines/[interval]`, `/api/consensus`, más `/api/markets`.
+- Hooks (`usePrice`, `useKlines`, `useConsensus`, `useMarkets`) y
+  componentes (`TopBar`, `PriceHero`, `AlertsBar`, `VerdictPanel`,
+  `SignalsGrid`, `IndicatorsGrid`, `PriceChart`, `RSIChart`,
+  `NewsFeed`) aceptan ahora una `AssetSpec` opcional.
+- Tests Monte Carlo + regresión de tendencia (47 totales).
+- Navegación en TopBar: Top 20 · EUR/USD · Proyecciones · Guía.
+
+### Added
+
+- **Sentiment de noticias como indicador #11** en el consenso técnico
+  (soft blend). `generateConsensus(klines, { newsNetScore })` ahora
+  acepta un net score opcional `[-100, +100]` que se mapea a una señal
+  discreta `[-2, +2]` y se agrega a la suma. Si las noticias no están
+  disponibles el consenso vuelve al modo 10-indicadores sin penalización.
+- `ConsensusResult` expone ahora `maxScore` y `includesSentiment` para
+  que el UI muestre la escala correcta.
+- Thresholds de verdict ahora escalan con el número de indicadores
+  (`STRONG = ceil(maxScore × 0.6)`).
+- Página `/guia` con metodología completa: filosofía, fórmulas de cada
+  indicador, mapeo de señales, motor de consenso, niveles operativos,
+  multi-timeframe, alertas, fuentes de datos y limitaciones honestas.
+  Enlazada desde TopBar y Footer.
+- `lib/news-aggregate.ts` centraliza la carga + clasificación de
+  noticias para que `/api/news` y `/api/consensus` compartan código.
+- 5 tests nuevos para sentiment blending (40 totales).
+
+### Changed
+
+- `/api/consensus` ahora corre en runtime Node (antes edge) para tener
+  presupuesto de CPU al cargar las 3 RSS en paralelo, y arma el verdict
+  con `klines + news` en `Promise.all`. La news se trae con un timeout
+  de 4 s y degrada gracefully a `null`.
+- `VerdictPanel` ahora muestra `Score · escala −N / +N +sentiment`
+  dinámicamente según `maxScore` e `includesSentiment` del payload.
+
 ## [0.1.0] – 2026-05-16
 
 ### Added

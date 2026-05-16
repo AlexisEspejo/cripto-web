@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { fetchNews } from '@/lib/api-clients/cryptocompare';
+import { aggregateSentiment, loadRawNews } from '@/lib/news-aggregate';
 import { classifyNews } from '@/lib/news-sentiment';
 import type { NewsResponse, NewsItem } from '@/lib/types';
 
@@ -8,30 +8,26 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    const raw = await fetchNews();
-    let bull = 0;
-    let bear = 0;
-    let neutral = 0;
-    const items: NewsItem[] = raw.map((n) => {
-      const sentiment = classifyNews(n.title, n.body);
-      if (sentiment === 'bull') bull++;
-      else if (sentiment === 'bear') bear++;
-      else neutral++;
-      return {
-        id: String(n.id ?? n.url),
-        title: n.title,
-        body: n.body ?? '',
-        url: n.url,
-        source: n.source_info?.name ?? n.source ?? '',
-        publishedOn: n.published_on,
-        sentiment,
-      };
-    });
-    const total = bull + bear + neutral;
-    const netScore = total > 0 ? Math.round(((bull - bear) / total) * 100) : 0;
+    const raw = await loadRawNews();
+    if (raw.length === 0) throw new Error('no_news_items');
+    const agg = aggregateSentiment(raw);
+    const items: NewsItem[] = raw.map(n => ({
+      id: String(n.id ?? n.url),
+      title: n.title,
+      body: n.body ?? '',
+      url: n.url,
+      source: n.source_info?.name ?? n.source ?? '',
+      publishedOn: n.published_on,
+      sentiment: classifyNews(n.title, n.body),
+    }));
     const payload: NewsResponse = {
       items,
-      aggregate: { bull, bear, neutral, netScore },
+      aggregate: {
+        bull: agg.bull,
+        bear: agg.bear,
+        neutral: agg.neutral,
+        netScore: agg.netScore,
+      },
       timestamp: Date.now(),
     };
     return NextResponse.json(payload, {
@@ -46,9 +42,6 @@ export async function GET() {
         error: err instanceof Error ? err.message : String(err),
       }),
     );
-    return NextResponse.json(
-      { ok: false, error: 'news_fetch_failed' },
-      { status: 502 },
-    );
+    return NextResponse.json({ ok: false, error: 'news_fetch_failed' }, { status: 502 });
   }
 }

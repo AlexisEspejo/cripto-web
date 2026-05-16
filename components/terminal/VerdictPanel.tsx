@@ -1,8 +1,10 @@
 'use client';
 import { useConsensus } from '@/hooks/useConsensus';
-import { fmtTime, fmtUSD } from '@/lib/formatters';
+import { useDisplayQuote } from '@/hooks/useDisplayQuote';
+import { fmtTime } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import type { IndicatorResult, Verdict } from '@/lib/types';
+import { ASSETS, type AssetSpec } from '@/lib/asset-registry';
 
 const VERDICT_LABEL: Record<Verdict, string> = {
   STRONG_BUY: 'STRONG BUY',
@@ -28,8 +30,10 @@ const verdictGlow: Record<Verdict, string> = {
   STRONG_SELL: 'drop-shadow-[0_0_16px_rgba(255,71,87,0.4)]',
 };
 
-export function VerdictPanel() {
-  const { data, isLoading, isError } = useConsensus();
+export function VerdictPanel({ asset = ASSETS.BTC! }: { asset?: AssetSpec }) {
+  const { data, isLoading, isError } = useConsensus(asset.id);
+  const dq = useDisplayQuote();
+  const fmtPrice = (v: number) => dq.formatForAsset(v, asset);
 
   if (isLoading) {
     return (
@@ -91,7 +95,10 @@ export function VerdictPanel() {
             <div className="mt-6 grid grid-cols-2 gap-6 border-t border-border pt-5 sm:grid-cols-4">
               <div>
                 <div className="text-[10px] uppercase tracking-widest text-text-mute">
-                  Score · escala −20 / +20
+                  Score · escala −{data.maxScore} / +{data.maxScore}
+                  {data.includesSentiment && (
+                    <span className="ml-1 text-brand">+sentiment</span>
+                  )}
                 </div>
                 <div className={cn('mt-1 text-3xl font-semibold tabular-nums', scoreColor)}>
                   {data.totalScore > 0 ? '+' : ''}
@@ -112,12 +119,12 @@ export function VerdictPanel() {
             <div className="mt-4 space-y-2 text-sm">
               <Level
                 label="Entry Zone"
-                value={`${fmtUSD(data.levels.entry.from)} – ${fmtUSD(data.levels.entry.to)}`}
+                value={`${fmtPrice(data.levels.entry.from)} – ${fmtPrice(data.levels.entry.to)}`}
               />
-              <Level label="Stop Loss" value={`${fmtUSD(data.levels.stop)} (${pct(data.levels.stop)})`} color="text-down" />
-              <Level label="Target 1" value={`${fmtUSD(data.levels.tp1)} (${pct(data.levels.tp1)})`} color="text-up" />
-              <Level label="Target 2" value={`${fmtUSD(data.levels.tp2)} (${pct(data.levels.tp2)})`} color="text-up" />
-              <Level label="Target 3" value={`${fmtUSD(data.levels.tp3)} (${pct(data.levels.tp3)})`} color="text-up" />
+              <Level label="Stop Loss" value={`${fmtPrice(data.levels.stop)} (${pct(data.levels.stop)})`} color="text-down" />
+              <Level label="Target 1" value={`${fmtPrice(data.levels.tp1)} (${pct(data.levels.tp1)})`} color="text-up" />
+              <Level label="Target 2" value={`${fmtPrice(data.levels.tp2)} (${pct(data.levels.tp2)})`} color="text-up" />
+              <Level label="Target 3" value={`${fmtPrice(data.levels.tp3)} (${pct(data.levels.tp3)})`} color="text-up" />
             </div>
             <p className="mt-4 border-t border-border pt-3 text-[11px] italic text-text-mute">
               Niveles auto-calculados a partir de Bollinger, EMAs y posición de consenso. No constituyen recomendación de inversión.

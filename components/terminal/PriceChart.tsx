@@ -1,9 +1,14 @@
 'use client';
 import { useKlines } from '@/hooks/useKlines';
+import { useDisplayQuote } from '@/hooks/useDisplayQuote';
 import { useUIStore } from '@/stores/ui-store';
 import { ema } from '@/lib/indicators';
-import { fmtDate, fmtPct, fmtUSD } from '@/lib/formatters';
+import { analyseAdvanced } from '@/lib/projections';
+import { deriveProjection } from '@/lib/pattern-projections';
+import { fmtDate, fmtPct } from '@/lib/formatters';
 import type { KlineInterval } from '@/lib/types';
+import { ASSETS, type AssetSpec } from '@/lib/asset-registry';
+
 import { useMemo } from 'react';
 import {
   Chart as ChartJS,
@@ -24,10 +29,18 @@ ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip,
 
 const TF_OPTIONS: KlineInterval[] = ['1h', '4h', '1d', '1w'];
 
-export function PriceChart() {
+export function PriceChart({ asset = ASSETS.BTC! }: { asset?: AssetSpec }) {
   const interval = useUIStore(s => s.chartInterval);
   const setInterval = useUIStore(s => s.setChartInterval);
-  const { data } = useKlines(interval);
+  const overlayEnabled = useUIStore(s => s.patternOverlayEnabled);
+  const { data } = useKlines(interval, asset.id);
+  const dailyKlines = useKlines('1d', asset.id);
+  const dq = useDisplayQuote();
+  const fmtPrice = (v: number) => dq.formatForAsset(v, asset);
+  const convertForAsset = (v: number): number => {
+    if (asset.type === 'fx') return v;
+    return dq.convert(v, asset.quote);
+  };
 
   const { labels, closes, e50, e200, stats } = useMemo(() => {
     if (!data || data.length === 0) {
@@ -49,12 +62,73 @@ export function PriceChart() {
     };
   }, [data]);
 
+  const displayCloses = closes.map(convertForAsset);
+  const displayE50 = e50.map(v => (v == null ? null : convertForAsset(v)));
+  const displayE200 = e200.map(v => (v == null ? null : convertForAsset(v)));
+
+  // Pattern projection overlay (computed from daily klines so it stays stable
+  // when the user flips the chart timeframe).
+  const overlay = useMemo(() => {
+    if (!overlayEnabled || !dailyKlines.data || dailyKlines.data.length < 60) return null;
+    const adv = analyseAdvanced(dailyKlines.data, '1d', 60);
+    if (!adv) return null;
+    const proj = deriveProjection({
+      lastPrice: adv.lastPrice,
+      support: adv.support,
+      resistance: adv.resistance,
+      patterns: adv.patterns,
+      trend: adv.trend,
+    });
+    return {
+      target: convertForAsset(proj.target),
+      stop: convertForAsset(proj.stop),
+      direction: proj.direction,
+      targetPct: proj.targetPct,
+      stopPct: proj.stopPct,
+    };
+  }, [overlayEnabled, dailyKlines.data, asset, dq.fxRate, dq.quote]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const overlayDatasets = overlay
+    ? [
+        {
+          label: `Target (${overlay.targetPct >= 0 ? '+' : ''}${overlay.targetPct.toFixed(2)}%)`,
+          data: labels.map(() => overlay.target),
+          borderColor:
+            overlay.direction === 'bullish'
+              ? '#00d68f'
+              : overlay.direction === 'bearish'
+              ? '#ff4757'
+              : '#ffb800',
+          borderWidth: 1.6,
+          borderDash: [6, 4],
+          tension: 0,
+          fill: false,
+          pointRadius: 0,
+        },
+        {
+          label: `Stop (${overlay.stopPct >= 0 ? '+' : ''}${overlay.stopPct.toFixed(2)}%)`,
+          data: labels.map(() => overlay.stop),
+          borderColor:
+            overlay.direction === 'bullish'
+              ? '#ff4757'
+              : overlay.direction === 'bearish'
+              ? '#00d68f'
+              : '#8a8a8a',
+          borderWidth: 1.4,
+          borderDash: [2, 4],
+          tension: 0,
+          fill: false,
+          pointRadius: 0,
+        },
+      ]
+    : [];
+
   const chartData: ChartData<'line'> = {
     labels,
     datasets: [
       {
-        label: 'BTC/USD',
-        data: closes,
+        label: `${asset.symbol}/${asset.type === 'fx' ? asset.quote : dq.quote}`,
+        data: displayCloses,
         borderColor: '#f7931a',
         backgroundColor: (ctx) => {
           const { ctx: c, chartArea } = ctx.chart;
@@ -72,7 +146,7 @@ export function PriceChart() {
       },
       {
         label: 'EMA 50',
-        data: e50,
+        data: displayE50,
         borderColor: '#4a90e2',
         borderWidth: 1.4,
         borderDash: [5, 4],
@@ -82,7 +156,7 @@ export function PriceChart() {
       },
       {
         label: 'EMA 200',
-        data: e200,
+        data: displayE200,
         borderColor: '#ff4757',
         borderWidth: 1.4,
         borderDash: [10, 5],
@@ -90,6 +164,7 @@ export function PriceChart() {
         fill: false,
         pointRadius: 0,
       },
+      ...overlayDatasets,
     ],
   };
 
@@ -112,7 +187,15 @@ export function PriceChart() {
           label: (ctx) => {
             if (ctx.raw == null) return '';
             const v = ctx.raw as number;
-            return `  ${(ctx.dataset.label ?? '').padEnd(8)}  $${v.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+            // ctx.raw is already in display quote (we converted before passing in)
+            if (asset.type === 'fx') {
+              return `  ${(ctx.dataset.label ?? '').padEnd(8)}  ${v.toFixed(asset.decimals)}`;
+            }
+            const decimals = Math.abs(v) >= 100 ? 0 : Math.abs(v) >= 1 ? 2 : 4;
+            return `  ${(ctx.dataset.label ?? '').padEnd(8)}  ${dq.symbol}${v.toLocaleString('en-US', {
+              minimumFractionDigits: decimals,
+              maximumFractionDigits: decimals,
+            })}`;
           },
         },
       },
@@ -129,7 +212,16 @@ export function PriceChart() {
           font: { size: 10 },
           color: '#666',
           padding: 8,
-          callback: (v) => '$' + (Number(v) / 1000).toFixed(0) + 'K',
+          // The dataset is already in display quote; pass through.
+          callback: (v) => {
+            const n = Number(v);
+            if (asset.type === 'fx') return n.toFixed(asset.decimals);
+            if (asset.decimals === 0) {
+              if (Math.abs(n) >= 1000) return dq.symbol + (n / 1000).toFixed(0) + 'K';
+              return dq.symbol + n.toFixed(0);
+            }
+            return dq.symbol + n.toFixed(2);
+          },
         },
         border: { display: false },
       },
@@ -145,7 +237,7 @@ export function PriceChart() {
               § 04 · Charts Técnicos
             </div>
             <h2 className="title-serif mt-1 text-2xl">
-              BTC/USD · estructura de <em>precio</em>
+              {asset.symbol}/{asset.type === 'fx' ? asset.quote : dq.quote} · estructura de <em>precio</em>
             </h2>
           </div>
           <div className="flex items-center gap-1 rounded-sm border border-border-strong bg-bg-card p-1">
@@ -167,8 +259,8 @@ export function PriceChart() {
 
         {stats && (
           <div className="mt-4 flex flex-wrap gap-6 border-b border-border pb-3 text-xs">
-            <Stat label="High" value={fmtUSD(stats.high)} />
-            <Stat label="Low" value={fmtUSD(stats.low)} />
+            <Stat label="High" value={fmtPrice(stats.high)} />
+            <Stat label="Low" value={fmtPrice(stats.low)} />
             <Stat
               label="Change"
               value={fmtPct(stats.chg)}
@@ -179,7 +271,7 @@ export function PriceChart() {
 
         <div className="mt-4 h-[380px] sm:h-[420px]">
           {data ? (
-            <Line data={chartData} options={options} aria-label="BTC price chart" />
+            <Line data={chartData} options={options} aria-label={`${asset.symbol} price chart`} />
           ) : (
             <div className="skeleton h-full w-full" />
           )}

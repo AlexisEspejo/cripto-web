@@ -2,7 +2,7 @@ import type { Kline, KlineInterval } from '../types';
 import type { Ticker24h } from './binance';
 
 const KRAKEN = 'https://api.kraken.com';
-const PAIR = 'XBTUSD';
+const DEFAULT_PAIR = 'XBTUSD';
 
 interface KrakenTickerResult {
   result: Record<
@@ -31,8 +31,8 @@ const INTERVAL_MIN: Record<KlineInterval, number> = {
   '1w': 10080,
 };
 
-export async function krakenTicker24h(): Promise<Ticker24h> {
-  const r = await fetch(`${KRAKEN}/0/public/Ticker?pair=${PAIR}`, { next: { revalidate: 30 } });
+export async function krakenTicker24h(pair: string = DEFAULT_PAIR): Promise<Ticker24h> {
+  const r = await fetch(`${KRAKEN}/0/public/Ticker?pair=${pair}`, { next: { revalidate: 30 } });
   if (!r.ok) throw new Error(`Kraken ticker failed: ${r.status}`);
   const j = (await r.json()) as KrakenTickerResult;
   if (j.error && j.error.length > 0) throw new Error(`Kraken: ${j.error.join(',')}`);
@@ -57,11 +57,15 @@ export async function krakenTicker24h(): Promise<Ticker24h> {
   };
 }
 
-export async function krakenKlines(interval: KlineInterval, limit: number): Promise<Kline[]> {
+export async function krakenKlines(
+  interval: KlineInterval,
+  limit: number,
+  pair: string = DEFAULT_PAIR,
+): Promise<Kline[]> {
   const min = INTERVAL_MIN[interval];
   const sinceSec = Math.floor(Date.now() / 1000) - min * 60 * (limit + 5);
   const r = await fetch(
-    `${KRAKEN}/0/public/OHLC?pair=${PAIR}&interval=${min}&since=${sinceSec}`,
+    `${KRAKEN}/0/public/OHLC?pair=${pair}&interval=${min}&since=${sinceSec}`,
     { next: { revalidate: 300 } },
   );
   if (!r.ok) throw new Error(`Kraken OHLC failed: ${r.status}`);

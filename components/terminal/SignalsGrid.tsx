@@ -3,14 +3,15 @@ import { useKlines } from '@/hooks/useKlines';
 import { DEFAULT_HORIZONS, generateSignal } from '@/lib/signals';
 import type { TimeframeSignal, KlineInterval } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { ASSETS, type AssetSpec } from '@/lib/asset-registry';
 
 const ORDER: KlineInterval[] = ['1h', '4h', '1d', '1w'];
 
-export function SignalsGrid() {
-  const h1 = useKlines('1h');
-  const h4 = useKlines('4h');
-  const d = useKlines('1d');
-  const w = useKlines('1w');
+export function SignalsGrid({ asset = ASSETS.BTC! }: { asset?: AssetSpec }) {
+  const h1 = useKlines('1h', asset.id);
+  const h4 = useKlines('4h', asset.id);
+  const d = useKlines('1d', asset.id);
+  const w = useKlines('1w', asset.id);
 
   const map: Record<KlineInterval, TimeframeSignal | null> = {
     '1h': h1.data ? generateSignal(h1.data, DEFAULT_HORIZONS['1h']) : null,

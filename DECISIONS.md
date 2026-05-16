@@ -157,3 +157,41 @@ menor que las features ya entregadas.
 
 Pospuesto. Las notificaciones push de cripto son típicamente intrusivas y
 requieren consent flow correcto. No es valor crítico para la v0.1.
+
+## 19 · Sentiment como indicador #11 (soft blend) en v0.2.0
+
+Razón: el HTML original separaba sentiment de noticias del verdict, pero
+agregarlo da una lectura más completa sin diluir la señal técnica. El
+diseño escogido:
+
+- **Opcional**: `generateConsensus(klines, { newsNetScore })`. Sin esa
+  opción la firma vieja sigue funcionando idéntica.
+- **Peso reducido**: el sentiment mapea a `[-2, +2]` igual que cualquier
+  otro indicador, así que solo puede empujar el score ±2 sobre los ±20
+  técnicos. Imposible que un día de hype "rally rally rally" voltee un
+  verdict técnicamente bearish.
+- **Thresholds escalan**: el umbral STRONG se calcula como
+  `ceil(maxScore × 0.6)`, así que con 10 indicadores STRONG = 12 (60 % de
+  20) y con 11 indicadores STRONG = 14 (60 % de 22). Mantiene el rigor.
+- **Fallback transparente**: si las noticias fallan o se quedan vacías,
+  `getNewsNetScore()` devuelve `null` y el consenso vuelve a 10
+  indicadores sin que el usuario lo note.
+- **Visible en UI**: el panel muestra `−22 / +22 +sentiment` cuando está
+  activo y la fila #11 aparece en la tabla de indicadores. Auditabilidad.
+
+Cualquier alternativa más sofisticada (NLP transformer, sentiment
+ponderado por reach de la fuente, etc.) está fuera del scope de v0.2.0.
+
+## 20 · Página /guia como metodología pública
+
+Documentar el algoritmo en una página accesible cumple dos objetivos:
+
+- **Confianza**: el usuario puede auditar cada threshold y cada fórmula
+  antes de tomar el verdict en serio.
+- **Defensa legal**: refuerza el disclaimer mostrando que no hay magia,
+  solo agregación de indicadores estándar de la industria.
+
+Estructura: 9 secciones (filosofía, los 10 indicadores con tablas de
+mapeo, sentiment, motor de consenso, niveles operativos, multi-timeframe,
+alertas, fuentes de datos, limitaciones honestas). Server-rendered, sin
+JS de cliente. Linkeada desde TopBar y Footer.

@@ -1,11 +1,16 @@
 'use client';
 import { usePrice } from '@/hooks/usePrice';
-import { fmtBig, fmtPct, fmtTime, fmtUSD } from '@/lib/formatters';
+import { useDisplayQuote } from '@/hooks/useDisplayQuote';
+import { fmtPct, fmtTime } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import { useEffect, useRef, useState } from 'react';
+import type { AssetSpec } from '@/lib/asset-registry';
+import { ASSETS } from '@/lib/asset-registry';
 
-export function PriceHero() {
-  const { data } = usePrice();
+export function PriceHero({ asset = ASSETS.BTC! }: { asset?: AssetSpec }) {
+  const { data } = usePrice(asset.id);
+  const dq = useDisplayQuote();
+  const fmtPrice = (v: number) => dq.formatForAsset(v, asset);
   const [flash, setFlash] = useState<'' | 'flash-up' | 'flash-down'>('');
   const prev = useRef<number | null>(null);
 
@@ -24,26 +29,25 @@ export function PriceHero() {
     <section className="grid gap-6 border-b border-border-strong px-4 py-10 sm:px-6 lg:grid-cols-[1.3fr_1fr] lg:gap-10 lg:py-14">
       <div>
         <div className="text-[10px] uppercase tracking-[0.25em] text-text-mute">
-          Terminal Live · BTC/USD
+          Terminal Live · {asset.symbol}/{asset.quote}
         </div>
         <h1 className="title-serif mt-3 text-3xl leading-tight sm:text-4xl lg:text-5xl">
-          Mercado <em>vivo</em>. Señales <em>actualizadas</em>.
+          {asset.name}: <em>{asset.symbol}</em> en <em>tiempo real</em>.
         </h1>
         <p className="mt-4 max-w-xl text-sm leading-relaxed text-text-dim">
-          Consenso técnico de 10 indicadores, señales multi-timeframe, charts en tiempo real y
-          feed de noticias clasificado por sentiment. Datos provenientes de Binance, CoinGecko y
-          CryptoCompare.
+          Consenso técnico de {asset.hasNews ? '10 indicadores + sentiment' : '10 indicadores'},
+          señales multi-timeframe, charts en vivo. Datos vía{' '}
+          {asset.type === 'fx' ? 'Yahoo Finance' : 'Binance / Kraken / CoinGecko'}.
         </p>
       </div>
 
       <div className="rounded-sm border border-border-strong bg-bg-card p-5">
         <div className="flex items-center justify-between text-[11px] uppercase tracking-widest text-text-dim">
           <span className="flex items-center gap-2">
-            <span className="live-dot" /> Precio Spot · USD
+            <span className="live-dot" /> Precio Spot ·{' '}
+            {asset.type === 'fx' ? asset.symbol : dq.quote}
           </span>
-          {data && (
-            <span className="text-text-mute">{fmtTime(data.timestamp)}</span>
-          )}
+          {data && <span className="text-text-mute">{fmtTime(data.timestamp)}</span>}
         </div>
         <div
           className={cn(
@@ -52,7 +56,11 @@ export function PriceHero() {
             flash,
           )}
         >
-          {data ? <PriceDisplay v={data.price} /> : <span className="text-text-mute">$--,---.--</span>}
+          {data ? (
+            <span>{fmtPrice(data.price)}</span>
+          ) : (
+            <span className="text-text-mute">$--,---.--</span>
+          )}
         </div>
         <div className="mt-3 flex gap-4 text-sm">
           <span className={cn(data && data.change24h >= 0 ? 'text-up' : 'text-down')}>
@@ -64,26 +72,26 @@ export function PriceHero() {
         </div>
 
         <dl className="mt-6 grid grid-cols-2 gap-3 text-xs">
-          <Stat label="24h Low" value={data ? fmtUSD(data.low24h) : '…'} />
-          <Stat label="24h High" value={data ? fmtUSD(data.high24h) : '…'} />
-          <Stat label="ATH" value={data?.ath ? fmtUSD(data.ath) : '…'} />
-          <Stat label="Volume 24h" value={data ? fmtBig(data.volume24h) : '…'} />
-          <Stat label="Market Cap" value={data?.marketCap ? fmtBig(data.marketCap) : '…'} />
-          <Stat label="Dominance" value="—" />
+          <Stat label="24h Low" value={data ? fmtPrice(data.low24h) : '…'} />
+          <Stat label="24h High" value={data ? fmtPrice(data.high24h) : '…'} />
+          {data?.ath && data.ath > 0 ? (
+            <Stat label="ATH" value={fmtPrice(data.ath)} />
+          ) : (
+            <Stat label="Range" value="—" />
+          )}
+          <Stat
+            label="Volume 24h"
+            value={data ? dq.format(data.volume24h, { compact: true }) : '…'}
+          />
+          {data?.marketCap && data.marketCap > 0 ? (
+            <Stat label="Market Cap" value={dq.format(data.marketCap, { compact: true })} />
+          ) : (
+            <Stat label="Type" value={asset.type.toUpperCase()} />
+          )}
+          <Stat label="Source" value={asset.type === 'fx' ? 'Yahoo' : 'Binance/Kraken'} />
         </dl>
       </div>
     </section>
-  );
-}
-
-function PriceDisplay({ v }: { v: number }) {
-  const dollars = Math.floor(v).toLocaleString('en-US');
-  const cents = (v % 1).toFixed(2).slice(1);
-  return (
-    <span>
-      ${dollars}
-      <span className="text-text-dim text-[0.55em] align-baseline">{cents}</span>
-    </span>
   );
 }
 

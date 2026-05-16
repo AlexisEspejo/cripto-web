@@ -1,12 +1,16 @@
 'use client';
 import { useKlines } from '@/hooks/useKlines';
+import { useDisplayQuote } from '@/hooks/useDisplayQuote';
 import { ema, macd, rsi } from '@/lib/indicators';
-import { fmtPct, fmtUSD } from '@/lib/formatters';
+import { fmtPct } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import { useMemo } from 'react';
+import { ASSETS, type AssetSpec } from '@/lib/asset-registry';
 
-export function IndicatorsGrid() {
-  const { data } = useKlines('1d');
+export function IndicatorsGrid({ asset = ASSETS.BTC! }: { asset?: AssetSpec }) {
+  const { data } = useKlines('1d', asset.id);
+  const dq = useDisplayQuote();
+  const fmtPrice = (v: number) => dq.formatForAsset(v, asset);
 
   const computed = useMemo(() => {
     if (!data) return null;
@@ -89,7 +93,7 @@ export function IndicatorsGrid() {
       name: 'EMA 50',
       tag: last > e50 ? 'up' : 'down',
       tagLabel: last > e50 ? 'Sobre' : 'Bajo',
-      value: fmtUSD(e50),
+      value: fmtPrice(e50),
       barWidth: 50,
       barColor: 'bg-info',
       context: `Tendencia media. Diff vs precio: ${fmtPct((last / e50 - 1) * 100)}.`,
@@ -98,7 +102,7 @@ export function IndicatorsGrid() {
       name: 'EMA 200',
       tag: last > e200 ? 'up' : 'down',
       tagLabel: last > e200 ? 'Sobre' : 'Bajo',
-      value: fmtUSD(e200),
+      value: fmtPrice(e200),
       barWidth: 75,
       barColor: last > e200 ? 'bg-up' : 'bg-down',
       context: `Tendencia larga · gate alcista clave. Diff: ${fmtPct((last / e200 - 1) * 100)}.`,

@@ -6,10 +6,11 @@ import { fmtDate } from '@/lib/formatters';
 import { useMemo } from 'react';
 import { Line } from 'react-chartjs-2';
 import type { ChartData, ChartOptions } from 'chart.js';
+import { ASSETS, type AssetSpec } from '@/lib/asset-registry';
 
-export function RSIChart() {
+export function RSIChart({ asset = ASSETS.BTC! }: { asset?: AssetSpec }) {
   const interval = useUIStore(s => s.chartInterval);
-  const { data } = useKlines(interval);
+  const { data } = useKlines(interval, asset.id);
 
   const { labels, rsiData, lastRSI } = useMemo(() => {
     if (!data || data.length === 0) return { labels: [], rsiData: [], lastRSI: null };
