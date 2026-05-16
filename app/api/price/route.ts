@@ -1,14 +1,27 @@
 import { NextResponse } from 'next/server';
-import { fetchTicker24h } from '@/lib/api-clients/binance';
+import { fetchTicker24h, type Ticker24h } from '@/lib/api-clients/binance';
 import { fetchAth } from '@/lib/api-clients/coingecko';
+import { krakenTicker24h } from '@/lib/api-clients/kraken';
 import type { PriceData } from '@/lib/types';
 
 export const revalidate = 30;
+export const dynamic = 'force-dynamic';
 export const runtime = 'edge';
+
+async function getTicker(): Promise<{ ticker: Ticker24h; source: 'binance' | 'kraken' }> {
+  try {
+    return { ticker: await fetchTicker24h(), source: 'binance' };
+  } catch (err) {
+    console.warn(
+      JSON.stringify({ route: '/api/price', binance_failed: err instanceof Error ? err.message : String(err) }),
+    );
+    return { ticker: await krakenTicker24h(), source: 'kraken' };
+  }
+}
 
 export async function GET() {
   try {
-    const [ticker, ath] = await Promise.all([fetchTicker24h(), fetchAth()]);
+    const [{ ticker }, ath] = await Promise.all([getTicker(), fetchAth()]);
     const price = parseFloat(ticker.lastPrice);
     const data: PriceData = {
       price,

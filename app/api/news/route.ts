@@ -4,6 +4,7 @@ import { classifyNews } from '@/lib/news-sentiment';
 import type { NewsResponse, NewsItem } from '@/lib/types';
 
 export const revalidate = 300;
+export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
