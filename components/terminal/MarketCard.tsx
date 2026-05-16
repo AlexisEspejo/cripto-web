@@ -2,15 +2,9 @@
 import Link from 'next/link';
 import { useMemo } from 'react';
 import type { MarketAsset } from '@/lib/api-clients/coingecko-markets';
-import { fmtBig, fmtPct } from '@/lib/formatters';
+import { fmtPct } from '@/lib/formatters';
+import { useDisplayQuote } from '@/hooks/useDisplayQuote';
 import { cn } from '@/lib/utils';
-
-function fmtPrice(v: number): string {
-  if (v >= 100) return '$' + v.toLocaleString('en-US', { maximumFractionDigits: 0 });
-  if (v >= 1) return '$' + v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  if (v >= 0.01) return '$' + v.toFixed(4);
-  return '$' + v.toFixed(6);
-}
 
 interface Props {
   market: MarketAsset;
@@ -18,6 +12,9 @@ interface Props {
 }
 
 export function MarketCard({ market, rank }: Props) {
+  const dq = useDisplayQuote();
+  const fmtPrice = (v: number) => dq.format(v, { from: 'USD' });
+  const fmtBig = (v: number) => dq.format(v, { from: 'USD', compact: true });
   const sparkPath = useMemo(() => buildSparkline(market.sparkline7d), [market.sparkline7d]);
   const chgColor =
     market.priceChangePct24h >= 0 ? 'text-up' : 'text-down';

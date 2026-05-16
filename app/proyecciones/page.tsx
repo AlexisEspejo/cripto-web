@@ -8,7 +8,7 @@ import { ProjectionChart } from '@/components/projections/ProjectionChart';
 import { useKlines } from '@/hooks/useKlines';
 import { useMarkets } from '@/hooks/useMarkets';
 import { useNews } from '@/hooks/useNews';
-import { useFxRate } from '@/hooks/useFxRate';
+import { useDisplayQuote } from '@/hooks/useDisplayQuote';
 import {
   analyseAdvanced,
   monteCarloProjection,
@@ -22,6 +22,7 @@ import { cn } from '@/lib/utils';
 import type { KlineInterval } from '@/lib/types';
 
 type Quote = 'USD' | 'EUR';
+// Re-export so SummaryPill / ScenarioCard signatures stay stable below.
 
 const HORIZONS_BY_TF: Record<KlineInterval, Array<{ label: string; steps: number }>> = {
   '1h': [
@@ -56,13 +57,13 @@ const PATHS = 1500;
 
 export default function ProjectionsPage() {
   const markets = useMarkets(20);
-  const fx = useFxRate();
+  const dq = useDisplayQuote();
   const [assetId, setAssetId] = useState<string>('BTC');
   const [interval, setIntervalTf] = useState<KlineInterval>('1d');
   const [horizonSteps, setHorizonSteps] = useState(30);
   const [investment, setInvestment] = useState(1000);
-  const [quote, setQuote] = useState<Quote>('USD');
   const [useSentiment, setUseSentiment] = useState(true);
+  const quote = dq.quote;
 
   const asset: AssetSpec = useMemo(() => {
     const fromRegistry = ASSETS[assetId.toUpperCase()];
@@ -92,11 +93,13 @@ export default function ProjectionsPage() {
     });
   }, [klines.data, interval, horizonSteps, useSentiment, asset.hasNews, news.data]);
 
-  // Currency conversion factor for displaying investment + scenario values.
-  // The asset price is in USD; toEur = price * (1/EURUSD).
-  const fxRate = fx.data?.price ?? 1; // USD per EUR
-  const toQuote = (usdValue: number): number => (quote === 'EUR' && fxRate > 0 ? usdValue / fxRate : usdValue);
-  const fromQuoteToUsd = (v: number): number => (quote === 'EUR' && fxRate > 0 ? v * fxRate : v);
+  // Currency conversion: the asset price is in its native quote (USD for crypto,
+  // already in target currency for forex). For crypto we convert via the global
+  // EUR/USD rate so the user can switch with the TopBar toggle.
+  const fxRate = dq.fxRate;
+  const toQuote = (usdValue: number): number => dq.convert(usdValue, 'USD');
+  const fromQuoteToUsd = (v: number): number =>
+    quote === 'EUR' && fxRate > 0 ? v * fxRate : v;
 
   const scenario = useMemo(() => {
     if (projection.bands.length === 0 || !analysis) return null;
@@ -210,19 +213,22 @@ export default function ProjectionsPage() {
                   <button
                     key={q}
                     type="button"
-                    onClick={() => setQuote(q)}
+                    onClick={() => dq.setQuote(q)}
                     className={cn(
                       'flex-1 rounded-sm border px-2 py-1.5 text-xs uppercase tracking-wider transition-colors',
                       quote === q
                         ? 'border-brand bg-brand text-bg font-semibold'
                         : 'border-border-strong bg-bg-elev text-text-dim hover:text-text',
                     )}
-                    title={fx.data ? `EUR/USD ${fx.data.price.toFixed(4)}` : ''}
+                    title={dq.fxLoaded ? `EUR/USD ${dq.fxRate.toFixed(4)}` : ''}
                   >
                     {q}
                   </button>
                 ))}
               </div>
+              <span className="block mt-1 text-[10px] text-text-mute">
+                Sincronizado con el toggle del header
+              </span>
             </Control>
           </div>
 
@@ -322,6 +328,7 @@ export default function ProjectionsPage() {
                 bands={projection.bands}
                 trend={analysis}
                 assetLabel={asset.symbol}
+                asset={asset}
               />
             ) : (
               <div className="skeleton h-[420px] w-full" />
@@ -337,7 +344,7 @@ export default function ProjectionsPage() {
                 quote={quote}
                 value={toQuote(scenario.expectedValue)}
                 pct={scenario.expectedReturnPct}
-                detail={`${scenario.qty.toLocaleString('en-US', { maximumFractionDigits: 6 })} ${asset.symbol} a ${formatPrice(asset, analysis?.lastPrice ?? 0)}`}
+                detail={`${scenario.qty.toLocaleString('en-US', { maximumFractionDigits: 6 })} ${asset.symbol} a ${dq.formatForAsset(analysis?.lastPrice ?? 0, asset)}`}
               />
               <ScenarioCard
                 label="Escenario alcista (P95)"
@@ -454,6 +461,8 @@ function MetricsGrid({
   quote: Quote;
   toQuote: (v: number) => number;
 }) {
+  const dq = useDisplayQuote();
+  const fmtPrice = (v: number) => dq.formatForAsset(v, asset);
   const trendTone =
     analysis.trend === 'alcista' ? 'up' : analysis.trend === 'bajista' ? 'down' : 'warn';
   const sharpeTone = analysis.sharpe >= 1 ? 'up' : analysis.sharpe <= 0 ? 'down' : 'warn';
@@ -615,7 +624,7 @@ function MetricsGrid({
       <div className="grid gap-3 lg:grid-cols-2">
         <MetricCard
           label="Donchian 30 · soporte / resistencia"
-          value={`${formatPrice(asset, analysis.support)} – ${formatPrice(asset, analysis.resistance)}`}
+          value={`${fmtPrice(analysis.support)} – ${fmtPrice(analysis.resistance)}`}
           tone="neutral"
           hint={`Distancia al techo: ${(((analysis.resistance - analysis.lastPrice) / analysis.lastPrice) * 100).toFixed(2)} %  ·  al suelo: ${(((analysis.lastPrice - analysis.support) / analysis.lastPrice) * 100).toFixed(2)} %`}
         />
@@ -792,13 +801,4 @@ function Item({ color, label, dashed, filled }: { color: string; label: string; 
   );
 }
 
-function formatPrice(asset: AssetSpec, v: number): string {
-  if (asset.decimals === 0) return '$' + Math.round(v).toLocaleString('en-US');
-  return (
-    '$' +
-    v.toLocaleString('en-US', {
-      minimumFractionDigits: asset.decimals,
-      maximumFractionDigits: asset.decimals,
-    })
-  );
-}
+// (formatting handled via useDisplayQuote().formatForAsset in components)

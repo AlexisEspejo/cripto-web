@@ -3,7 +3,8 @@ import Link from 'next/link';
 import { usePrice } from '@/hooks/usePrice';
 import { useKlines } from '@/hooks/useKlines';
 import { useNews } from '@/hooks/useNews';
-import { fmtBig, fmtPct, fmtTime, fmtUSD } from '@/lib/formatters';
+import { useDisplayQuote } from '@/hooks/useDisplayQuote';
+import { fmtPct, fmtTime } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import { useEffect, useRef, useState } from 'react';
 
@@ -26,6 +27,7 @@ function useHealth(asset: AssetSpec): Health {
 export function TopBar({ asset = ASSETS.BTC! }: { asset?: AssetSpec }) {
   const { data } = usePrice(asset.id);
   const health = useHealth(asset);
+  const dq = useDisplayQuote();
   const [now, setNow] = useState<number>(() => Date.now());
   const prevPrice = useRef<number | null>(null);
   const [flash, setFlash] = useState<'' | 'flash-up' | 'flash-down'>('');
@@ -68,15 +70,49 @@ export function TopBar({ asset = ASSETS.BTC! }: { asset?: AssetSpec }) {
 
         <div className="ml-auto flex items-center gap-5 text-xs">
           <div className="hidden lg:flex items-center gap-5 text-text-dim">
-            <TickerItem label="BTC" value={data ? fmtUSD(data.price) : '…'} flashClass={flash} highlight />
+            <TickerItem
+              label={asset.symbol}
+              value={data ? dq.formatForAsset(data.price, asset) : '…'}
+              flashClass={flash}
+              highlight
+            />
             <TickerItem
               label="24h"
               value={data ? fmtPct(data.change24h) : '…'}
               valueClass={data && data.change24h >= 0 ? 'text-up' : 'text-down'}
             />
-            <TickerItem label="VOL" value={data ? fmtBig(data.volume24h) : '…'} />
-            <TickerItem label="MC" value={data?.marketCap ? fmtBig(data.marketCap) : '…'} />
-            <TickerItem label="ATH" value={data?.ath ? fmtUSD(data.ath) : '…'} />
+            <TickerItem label="VOL" value={data ? dq.format(data.volume24h, { compact: true }) : '…'} />
+            {data?.marketCap ? (
+              <TickerItem label="MC" value={dq.format(data.marketCap, { compact: true })} />
+            ) : null}
+            {data?.ath ? (
+              <TickerItem label="ATH" value={dq.formatForAsset(data.ath, asset)} />
+            ) : null}
+          </div>
+
+          {/* Display currency toggle */}
+          <div
+            className="flex items-center gap-0.5 rounded-sm border border-border-strong bg-bg-card p-0.5"
+            role="group"
+            aria-label="Moneda de visualización"
+            title={dq.fxLoaded ? `EUR/USD ${dq.fxRate.toFixed(4)}` : 'Cargando tipo de cambio…'}
+          >
+            {(['USD', 'EUR'] as const).map(q => (
+              <button
+                key={q}
+                type="button"
+                onClick={() => dq.setQuote(q)}
+                aria-pressed={dq.quote === q}
+                className={cn(
+                  'px-2 py-1 text-[10px] uppercase tracking-wider transition-colors',
+                  dq.quote === q
+                    ? 'bg-brand text-bg font-semibold'
+                    : 'text-text-mute hover:text-text',
+                )}
+              >
+                {q === 'USD' ? '$ USD' : '€ EUR'}
+              </button>
+            ))}
           </div>
 
           <div className="flex items-center gap-3 border-l border-border-strong pl-4">

@@ -10,13 +10,15 @@ import {
   Tooltip,
   Filler,
 } from 'chart.js';
+import { useMemo } from 'react';
 import type { Kline } from '@/lib/types';
 import type { MonteCarloBand } from '@/lib/projections';
+import { useDisplayQuote } from '@/hooks/useDisplayQuote';
+import type { AssetSpec } from '@/lib/asset-registry';
 
 interface RegressionShape {
   regression: { from: number; to: number };
 }
-import { useMemo } from 'react';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler);
 
@@ -25,9 +27,14 @@ interface Props {
   bands: MonteCarloBand[];
   trend?: RegressionShape | null;
   assetLabel: string;
+  asset?: AssetSpec;
 }
 
-export function ProjectionChart({ history, bands, trend, assetLabel }: Props) {
+export function ProjectionChart({ history, bands, trend, assetLabel, asset }: Props) {
+  const dq = useDisplayQuote();
+  const isRatio = asset?.type === 'fx';
+  const convert = (v: number): number =>
+    isRatio ? v : dq.convert(v, asset?.quote ?? 'USD');
   const data: ChartData<'line'> = useMemo(() => {
     const histLabels = history.map(k => new Date(k.time).toISOString().slice(0, 10));
     const futureLabels: string[] = [];
@@ -47,13 +54,13 @@ export function ProjectionChart({ history, bands, trend, assetLabel }: Props) {
       return out.concat(arr);
     };
 
-    const closes = history.map(k => k.close);
+    const closes = history.map(k => convert(k.close));
 
-    const p5Future = bands.slice(1).map(b => b.p5);
-    const p25Future = bands.slice(1).map(b => b.p25);
-    const p50Future = bands.slice(1).map(b => b.p50);
-    const p75Future = bands.slice(1).map(b => b.p75);
-    const p95Future = bands.slice(1).map(b => b.p95);
+    const p5Future = bands.slice(1).map(b => convert(b.p5));
+    const p25Future = bands.slice(1).map(b => convert(b.p25));
+    const p50Future = bands.slice(1).map(b => convert(b.p50));
+    const p75Future = bands.slice(1).map(b => convert(b.p75));
+    const p95Future = bands.slice(1).map(b => convert(b.p95));
 
     // Regression overlay (linear fit over the analysed window) — extend a bit into the future
     let regression: Array<number | null> = [];
@@ -63,11 +70,11 @@ export function ProjectionChart({ history, bands, trend, assetLabel }: Props) {
       const len = histLen - startIdx;
       const slopePerStep = (trend.regression.to - trend.regression.from) / Math.max(1, len - 1);
       for (let i = 0; i < len; i++) {
-        regression.push(trend.regression.from + slopePerStep * i);
+        regression.push(convert(trend.regression.from + slopePerStep * i));
       }
       // continue regression a few steps into the future
       for (let i = 0; i < bands.length - 1; i++) {
-        regression.push(trend.regression.to + slopePerStep * (i + 1));
+        regression.push(convert(trend.regression.to + slopePerStep * (i + 1)));
       }
     }
 
@@ -146,7 +153,10 @@ export function ProjectionChart({ history, bands, trend, assetLabel }: Props) {
         },
       ],
     };
-  }, [history, bands, trend]);
+  // The `convert` closure is recreated each render but depends only on
+  // `dq.fxRate`, `dq.quote`, and `asset`; we tracking those instead.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [history, bands, trend, dq.fxRate, dq.quote, asset]);
 
   const options: ChartOptions<'line'> = {
     responsive: true,
@@ -164,12 +174,15 @@ export function ProjectionChart({ history, bands, trend, assetLabel }: Props) {
         padding: 12,
         cornerRadius: 0,
         callbacks: {
-          label: ctx =>
-            ctx.raw == null
-              ? ''
-              : `  ${(ctx.dataset.label ?? '').padEnd(16)}  $${Number(ctx.raw).toLocaleString('en-US', {
-                  maximumFractionDigits: 2,
-                })}`,
+          label: ctx => {
+            if (ctx.raw == null) return '';
+            const n = Number(ctx.raw);
+            if (isRatio) return `  ${(ctx.dataset.label ?? '').padEnd(16)}  ${n.toFixed(asset?.decimals ?? 4)}`;
+            return `  ${(ctx.dataset.label ?? '').padEnd(16)}  ${dq.symbol}${n.toLocaleString(
+              'en-US',
+              { maximumFractionDigits: 2 },
+            )}`;
+          },
         },
       },
     },
@@ -187,8 +200,9 @@ export function ProjectionChart({ history, bands, trend, assetLabel }: Props) {
           padding: 8,
           callback: v => {
             const n = Number(v);
-            if (Math.abs(n) >= 1000) return '$' + (n / 1000).toFixed(0) + 'K';
-            return '$' + n.toFixed(2);
+            if (isRatio) return n.toFixed(asset?.decimals ?? 4);
+            if (Math.abs(n) >= 1000) return dq.symbol + (n / 1000).toFixed(0) + 'K';
+            return dq.symbol + n.toFixed(2);
           },
         },
         border: { display: false },

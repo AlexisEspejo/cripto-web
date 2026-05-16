@@ -1,5 +1,6 @@
 'use client';
 import { useKlines } from '@/hooks/useKlines';
+import { useDisplayQuote } from '@/hooks/useDisplayQuote';
 import { useUIStore } from '@/stores/ui-store';
 import { ema } from '@/lib/indicators';
 import { fmtDate, fmtPct } from '@/lib/formatters';
@@ -7,26 +8,6 @@ import type { KlineInterval } from '@/lib/types';
 import { ASSETS, type AssetSpec } from '@/lib/asset-registry';
 
 import { useMemo } from 'react';
-
-function fmtPriceFor(asset: AssetSpec, v: number): string {
-  if (asset.decimals === 0) return '$' + Math.round(v).toLocaleString('en-US');
-  return (
-    '$' +
-    v.toLocaleString('en-US', {
-      minimumFractionDigits: asset.decimals,
-      maximumFractionDigits: asset.decimals,
-    })
-  );
-}
-
-function shortAxisFor(asset: AssetSpec, v: number): string {
-  if (asset.decimals === 0) {
-    if (Math.abs(v) >= 1000) return '$' + (v / 1000).toFixed(0) + 'K';
-    return '$' + v.toFixed(0);
-  }
-  if (asset.decimals >= 4) return v.toFixed(asset.decimals);
-  return '$' + v.toFixed(2);
-}
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -50,6 +31,12 @@ export function PriceChart({ asset = ASSETS.BTC! }: { asset?: AssetSpec }) {
   const interval = useUIStore(s => s.chartInterval);
   const setInterval = useUIStore(s => s.setChartInterval);
   const { data } = useKlines(interval, asset.id);
+  const dq = useDisplayQuote();
+  const fmtPrice = (v: number) => dq.formatForAsset(v, asset);
+  const convertForAsset = (v: number): number => {
+    if (asset.type === 'fx') return v;
+    return dq.convert(v, asset.quote);
+  };
 
   const { labels, closes, e50, e200, stats } = useMemo(() => {
     if (!data || data.length === 0) {
@@ -71,12 +58,16 @@ export function PriceChart({ asset = ASSETS.BTC! }: { asset?: AssetSpec }) {
     };
   }, [data]);
 
+  const displayCloses = closes.map(convertForAsset);
+  const displayE50 = e50.map(v => (v == null ? null : convertForAsset(v)));
+  const displayE200 = e200.map(v => (v == null ? null : convertForAsset(v)));
+
   const chartData: ChartData<'line'> = {
     labels,
     datasets: [
       {
-        label: `${asset.symbol}/${asset.quote}`,
-        data: closes,
+        label: `${asset.symbol}/${asset.type === 'fx' ? asset.quote : dq.quote}`,
+        data: displayCloses,
         borderColor: '#f7931a',
         backgroundColor: (ctx) => {
           const { ctx: c, chartArea } = ctx.chart;
@@ -94,7 +85,7 @@ export function PriceChart({ asset = ASSETS.BTC! }: { asset?: AssetSpec }) {
       },
       {
         label: 'EMA 50',
-        data: e50,
+        data: displayE50,
         borderColor: '#4a90e2',
         borderWidth: 1.4,
         borderDash: [5, 4],
@@ -104,7 +95,7 @@ export function PriceChart({ asset = ASSETS.BTC! }: { asset?: AssetSpec }) {
       },
       {
         label: 'EMA 200',
-        data: e200,
+        data: displayE200,
         borderColor: '#ff4757',
         borderWidth: 1.4,
         borderDash: [10, 5],
@@ -134,7 +125,15 @@ export function PriceChart({ asset = ASSETS.BTC! }: { asset?: AssetSpec }) {
           label: (ctx) => {
             if (ctx.raw == null) return '';
             const v = ctx.raw as number;
-            return `  ${(ctx.dataset.label ?? '').padEnd(8)}  ${fmtPriceFor(asset, v)}`;
+            // ctx.raw is already in display quote (we converted before passing in)
+            if (asset.type === 'fx') {
+              return `  ${(ctx.dataset.label ?? '').padEnd(8)}  ${v.toFixed(asset.decimals)}`;
+            }
+            const decimals = Math.abs(v) >= 100 ? 0 : Math.abs(v) >= 1 ? 2 : 4;
+            return `  ${(ctx.dataset.label ?? '').padEnd(8)}  ${dq.symbol}${v.toLocaleString('en-US', {
+              minimumFractionDigits: decimals,
+              maximumFractionDigits: decimals,
+            })}`;
           },
         },
       },
@@ -151,7 +150,16 @@ export function PriceChart({ asset = ASSETS.BTC! }: { asset?: AssetSpec }) {
           font: { size: 10 },
           color: '#666',
           padding: 8,
-          callback: (v) => shortAxisFor(asset, Number(v)),
+          // The dataset is already in display quote; pass through.
+          callback: (v) => {
+            const n = Number(v);
+            if (asset.type === 'fx') return n.toFixed(asset.decimals);
+            if (asset.decimals === 0) {
+              if (Math.abs(n) >= 1000) return dq.symbol + (n / 1000).toFixed(0) + 'K';
+              return dq.symbol + n.toFixed(0);
+            }
+            return dq.symbol + n.toFixed(2);
+          },
         },
         border: { display: false },
       },
@@ -167,7 +175,7 @@ export function PriceChart({ asset = ASSETS.BTC! }: { asset?: AssetSpec }) {
               § 04 · Charts Técnicos
             </div>
             <h2 className="title-serif mt-1 text-2xl">
-              {asset.symbol}/{asset.quote} · estructura de <em>precio</em>
+              {asset.symbol}/{asset.type === 'fx' ? asset.quote : dq.quote} · estructura de <em>precio</em>
             </h2>
           </div>
           <div className="flex items-center gap-1 rounded-sm border border-border-strong bg-bg-card p-1">
@@ -189,8 +197,8 @@ export function PriceChart({ asset = ASSETS.BTC! }: { asset?: AssetSpec }) {
 
         {stats && (
           <div className="mt-4 flex flex-wrap gap-6 border-b border-border pb-3 text-xs">
-            <Stat label="High" value={fmtPriceFor(asset, stats.high)} />
-            <Stat label="Low" value={fmtPriceFor(asset, stats.low)} />
+            <Stat label="High" value={fmtPrice(stats.high)} />
+            <Stat label="Low" value={fmtPrice(stats.low)} />
             <Stat
               label="Change"
               value={fmtPct(stats.chg)}

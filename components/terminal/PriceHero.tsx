@@ -1,24 +1,16 @@
 'use client';
 import { usePrice } from '@/hooks/usePrice';
-import { fmtBig, fmtPct, fmtTime } from '@/lib/formatters';
+import { useDisplayQuote } from '@/hooks/useDisplayQuote';
+import { fmtPct, fmtTime } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 import { useEffect, useRef, useState } from 'react';
 import type { AssetSpec } from '@/lib/asset-registry';
 import { ASSETS } from '@/lib/asset-registry';
 
-function fmtPriceFor(asset: AssetSpec, v: number): string {
-  if (asset.decimals === 0) return '$' + Math.round(v).toLocaleString('en-US');
-  return (
-    '$' +
-    v.toLocaleString('en-US', {
-      minimumFractionDigits: asset.decimals,
-      maximumFractionDigits: asset.decimals,
-    })
-  );
-}
-
 export function PriceHero({ asset = ASSETS.BTC! }: { asset?: AssetSpec }) {
   const { data } = usePrice(asset.id);
+  const dq = useDisplayQuote();
+  const fmtPrice = (v: number) => dq.formatForAsset(v, asset);
   const [flash, setFlash] = useState<'' | 'flash-up' | 'flash-down'>('');
   const prev = useRef<number | null>(null);
 
@@ -52,7 +44,8 @@ export function PriceHero({ asset = ASSETS.BTC! }: { asset?: AssetSpec }) {
       <div className="rounded-sm border border-border-strong bg-bg-card p-5">
         <div className="flex items-center justify-between text-[11px] uppercase tracking-widest text-text-dim">
           <span className="flex items-center gap-2">
-            <span className="live-dot" /> Precio Spot · {asset.quote}
+            <span className="live-dot" /> Precio Spot ·{' '}
+            {asset.type === 'fx' ? asset.symbol : dq.quote}
           </span>
           {data && <span className="text-text-mute">{fmtTime(data.timestamp)}</span>}
         </div>
@@ -64,7 +57,7 @@ export function PriceHero({ asset = ASSETS.BTC! }: { asset?: AssetSpec }) {
           )}
         >
           {data ? (
-            <PriceDisplay v={data.price} asset={asset} />
+            <span>{fmtPrice(data.price)}</span>
           ) : (
             <span className="text-text-mute">$--,---.--</span>
           )}
@@ -79,16 +72,19 @@ export function PriceHero({ asset = ASSETS.BTC! }: { asset?: AssetSpec }) {
         </div>
 
         <dl className="mt-6 grid grid-cols-2 gap-3 text-xs">
-          <Stat label="24h Low" value={data ? fmtPriceFor(asset, data.low24h) : '…'} />
-          <Stat label="24h High" value={data ? fmtPriceFor(asset, data.high24h) : '…'} />
+          <Stat label="24h Low" value={data ? fmtPrice(data.low24h) : '…'} />
+          <Stat label="24h High" value={data ? fmtPrice(data.high24h) : '…'} />
           {data?.ath && data.ath > 0 ? (
-            <Stat label="ATH" value={fmtPriceFor(asset, data.ath)} />
+            <Stat label="ATH" value={fmtPrice(data.ath)} />
           ) : (
             <Stat label="Range" value="—" />
           )}
-          <Stat label="Volume 24h" value={data ? fmtBig(data.volume24h) : '…'} />
+          <Stat
+            label="Volume 24h"
+            value={data ? dq.format(data.volume24h, { compact: true }) : '…'}
+          />
           {data?.marketCap && data.marketCap > 0 ? (
-            <Stat label="Market Cap" value={fmtBig(data.marketCap)} />
+            <Stat label="Market Cap" value={dq.format(data.marketCap, { compact: true })} />
           ) : (
             <Stat label="Type" value={asset.type.toUpperCase()} />
           )}
@@ -96,28 +92,6 @@ export function PriceHero({ asset = ASSETS.BTC! }: { asset?: AssetSpec }) {
         </dl>
       </div>
     </section>
-  );
-}
-
-function PriceDisplay({ v, asset }: { v: number; asset: AssetSpec }) {
-  if (asset.decimals === 0) {
-    const dollars = Math.floor(v).toLocaleString('en-US');
-    const cents = (v % 1).toFixed(2).slice(1);
-    return (
-      <span>
-        ${dollars}
-        <span className="text-text-dim text-[0.55em] align-baseline">{cents}</span>
-      </span>
-    );
-  }
-  return (
-    <span>
-      $
-      {v.toLocaleString('en-US', {
-        minimumFractionDigits: asset.decimals,
-        maximumFractionDigits: asset.decimals,
-      })}
-    </span>
   );
 }
 
