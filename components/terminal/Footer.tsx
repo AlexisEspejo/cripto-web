@@ -19,10 +19,13 @@ export function Footer() {
           pueden contener errores o retrasos.
         </p>
         <div className="flex flex-wrap items-center gap-4 pt-2">
+          <Link href="/guia" className="underline hover:text-text">
+            Guía de metodología
+          </Link>
           <Link href="/disclaimer" className="underline hover:text-text">
             Disclaimer completo
           </Link>
-          <span>Datos: Binance · CoinGecko · CryptoCompare</span>
+          <span>Datos: Binance · Kraken · CoinGecko · RSS aggregator</span>
           <span className="ml-auto">© {new Date().getFullYear()} BTC Terminal</span>
         </div>
       </div>

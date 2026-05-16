@@ -4,6 +4,36 @@ Todos los cambios notables al proyecto se documentan aquí.
 Formato basado en [Keep a Changelog](https://keepachangelog.com/),
 versioning [SemVer](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- **Sentiment de noticias como indicador #11** en el consenso técnico
+  (soft blend). `generateConsensus(klines, { newsNetScore })` ahora
+  acepta un net score opcional `[-100, +100]` que se mapea a una señal
+  discreta `[-2, +2]` y se agrega a la suma. Si las noticias no están
+  disponibles el consenso vuelve al modo 10-indicadores sin penalización.
+- `ConsensusResult` expone ahora `maxScore` y `includesSentiment` para
+  que el UI muestre la escala correcta.
+- Thresholds de verdict ahora escalan con el número de indicadores
+  (`STRONG = ceil(maxScore × 0.6)`).
+- Página `/guia` con metodología completa: filosofía, fórmulas de cada
+  indicador, mapeo de señales, motor de consenso, niveles operativos,
+  multi-timeframe, alertas, fuentes de datos y limitaciones honestas.
+  Enlazada desde TopBar y Footer.
+- `lib/news-aggregate.ts` centraliza la carga + clasificación de
+  noticias para que `/api/news` y `/api/consensus` compartan código.
+- 5 tests nuevos para sentiment blending (40 totales).
+
+### Changed
+
+- `/api/consensus` ahora corre en runtime Node (antes edge) para tener
+  presupuesto de CPU al cargar las 3 RSS en paralelo, y arma el verdict
+  con `klines + news` en `Promise.all`. La news se trae con un timeout
+  de 4 s y degrada gracefully a `null`.
+- `VerdictPanel` ahora muestra `Score · escala −N / +N +sentiment`
+  dinámicamente según `maxScore` e `includesSentiment` del payload.
+
 ## [0.1.0] – 2026-05-16
 
 ### Added

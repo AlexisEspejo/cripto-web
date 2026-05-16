@@ -57,12 +57,49 @@ describe('generateConsensus', () => {
     expect(changed).toBe(true);
   });
 
-  it('score is bounded in [-20, +20]', () => {
+  it('score is bounded in [-20, +20] without sentiment', () => {
     const closes = Array.from({ length: 260 }, (_, i) => 100 + i * 0.3);
     const res = generateConsensus(makeKlines(closes));
     expect(res.totalScore).toBeGreaterThanOrEqual(-20);
     expect(res.totalScore).toBeLessThanOrEqual(20);
     expect(res.buyCount + res.sellCount + res.neutralCount).toBe(10);
+    expect(res.maxScore).toBe(20);
+    expect(res.includesSentiment).toBe(false);
+  });
+
+  it('with sentiment included → 11 indicators, maxScore 22, signal mapped', () => {
+    const closes = Array.from({ length: 260 }, (_, i) => 100 + i * 0.3);
+    const res = generateConsensus(makeKlines(closes), { newsNetScore: 50 });
+    expect(res.indicators).toHaveLength(11);
+    expect(res.maxScore).toBe(22);
+    expect(res.includesSentiment).toBe(true);
+    const last = res.indicators[10];
+    expect(last?.name).toBe('Sentiment Noticias');
+    expect(last?.signal).toBe(2);
+  });
+
+  it('news net score maps to discrete signals correctly', () => {
+    const closes = Array.from({ length: 260 }, (_, i) => 100 + i * 0.3);
+    const cases: Array<{ ns: number; expected: -2 | -1 | 0 | 1 | 2 }> = [
+      { ns: 80, expected: 2 },
+      { ns: 25, expected: 1 },
+      { ns: 5, expected: 0 },
+      { ns: 0, expected: 0 },
+      { ns: -25, expected: -1 },
+      { ns: -80, expected: -2 },
+    ];
+    for (const { ns, expected } of cases) {
+      const res = generateConsensus(makeKlines(closes), { newsNetScore: ns });
+      const last = res.indicators[10];
+      expect(last?.signal).toBe(expected);
+    }
+  });
+
+  it('bullish sentiment never lowers a bullish score', () => {
+    const closes = Array.from({ length: 260 }, (_, i) => 100 + i * 0.5);
+    const noNews = generateConsensus(makeKlines(closes));
+    const withBullNews = generateConsensus(makeKlines(closes), { newsNetScore: 100 });
+    expect(withBullNews.totalScore).toBeGreaterThanOrEqual(noNews.totalScore);
   });
 
   it('mixed/ranging series → HOLD', () => {

@@ -69,6 +69,8 @@ export interface ConsensusResult {
   verdictClass: string;
   verdictNote: string;
   totalScore: number;
+  /** Magnitude of the maximum possible absolute score (2 × indicators.length). */
+  maxScore: number;
   buyCount: number;
   sellCount: number;
   neutralCount: number;
@@ -76,6 +78,8 @@ export interface ConsensusResult {
   levels: ConsensusLevels;
   lastPrice: number;
   timestamp: number;
+  /** True when the news sentiment indicator was blended into the score. */
+  includesSentiment: boolean;
 }
 
 export interface SignalLabel {

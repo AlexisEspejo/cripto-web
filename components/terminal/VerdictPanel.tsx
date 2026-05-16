@@ -91,7 +91,10 @@ export function VerdictPanel() {
             <div className="mt-6 grid grid-cols-2 gap-6 border-t border-border pt-5 sm:grid-cols-4">
               <div>
                 <div className="text-[10px] uppercase tracking-widest text-text-mute">
-                  Score · escala −20 / +20
+                  Score · escala −{data.maxScore} / +{data.maxScore}
+                  {data.includesSentiment && (
+                    <span className="ml-1 text-brand">+sentiment</span>
+                  )}
                 </div>
                 <div className={cn('mt-1 text-3xl font-semibold tabular-nums', scoreColor)}>
                   {data.totalScore > 0 ? '+' : ''}

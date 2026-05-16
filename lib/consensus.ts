@@ -19,6 +19,11 @@ import type {
   Verdict,
 } from './types';
 
+export interface ConsensusOptions {
+  /** Net news sentiment score in `[-100, +100]` from the news aggregator. Optional. */
+  newsNetScore?: number | null;
+}
+
 const labelFor = (s: IndicatorSignal): string => {
   switch (s) {
     case 2:
@@ -37,7 +42,10 @@ const labelFor = (s: IndicatorSignal): string => {
 const last = <T,>(arr: ReadonlyArray<T>): T | undefined => arr[arr.length - 1];
 const prev = <T,>(arr: ReadonlyArray<T>): T | undefined => arr[arr.length - 2];
 
-export function generateConsensus(daily: Kline[]): ConsensusResult {
+export function generateConsensus(
+  daily: Kline[],
+  opts: ConsensusOptions = {},
+): ConsensusResult {
   const closes = daily.map(k => k.close);
   const highs = daily.map(k => k.high);
   const lows = daily.map(k => k.low);
@@ -337,16 +345,42 @@ export function generateConsensus(daily: Kline[]): ConsensusResult {
     push('Ichimoku (9/26)', t != null ? fmtUSD(t) : '--', s, n);
   }
 
+  // 11 · Sentiment de noticias (opcional, soft blend)
+  if (opts.newsNetScore != null) {
+    const ns = Math.max(-100, Math.min(100, Math.round(opts.newsNetScore)));
+    let s: IndicatorSignal = 0;
+    let n = `Sentiment neutro (${ns >= 0 ? '+' : ''}${ns})`;
+    if (ns >= 40) {
+      s = 2;
+      n = `Sentiment muy bullish (+${ns}) · flujo narrativo positivo`;
+    } else if (ns >= 15) {
+      s = 1;
+      n = `Sentiment bullish (+${ns}) · titulares favorables`;
+    } else if (ns <= -40) {
+      s = -2;
+      n = `Sentiment muy bearish (${ns}) · narrativa negativa`;
+    } else if (ns <= -15) {
+      s = -1;
+      n = `Sentiment bearish (${ns}) · titulares adversos`;
+    }
+    push('Sentiment Noticias', `${ns >= 0 ? '+' : ''}${ns}`, s, n);
+  }
+
   // ── AGGREGATE ──
   const totalScore = inds.reduce((acc, i) => acc + i.signal, 0);
   const buyCount = inds.filter(i => i.signal > 0).length;
   const sellCount = inds.filter(i => i.signal < 0).length;
   const neutralCount = inds.filter(i => i.signal === 0).length;
 
+  // Thresholds escalan con el número de indicadores:
+  // STRONG ≈ 60 % del máximo posible (max = #indicators × 2).
+  const maxScore = inds.length * 2;
+  const strongThreshold = Math.ceil(maxScore * 0.6);
+
   let verdict: Verdict;
   let verdictClass: string;
   let verdictNote: string;
-  if (totalScore >= 12) {
+  if (totalScore >= strongThreshold) {
     verdict = 'STRONG_BUY';
     verdictClass = 'strong-buy';
     verdictNote =
@@ -355,7 +389,7 @@ export function generateConsensus(daily: Kline[]): ConsensusResult {
     verdict = 'BUY';
     verdictClass = 'buy';
     verdictNote = 'Sesgo técnico alcista · setup de compra moderada.';
-  } else if (totalScore <= -12) {
+  } else if (totalScore <= -strongThreshold) {
     verdict = 'STRONG_SELL';
     verdictClass = 'strong-sell';
     verdictNote =
@@ -378,6 +412,7 @@ export function generateConsensus(daily: Kline[]): ConsensusResult {
     verdictClass,
     verdictNote,
     totalScore,
+    maxScore,
     buyCount,
     sellCount,
     neutralCount,
@@ -385,6 +420,7 @@ export function generateConsensus(daily: Kline[]): ConsensusResult {
     levels,
     lastPrice: lp,
     timestamp: Date.now(),
+    includesSentiment: opts.newsNetScore != null,
   };
 }
 

@@ -1,4 +1,5 @@
 'use client';
+import Link from 'next/link';
 import { usePrice } from '@/hooks/usePrice';
 import { useKlines } from '@/hooks/useKlines';
 import { useNews } from '@/hooks/useNews';
@@ -46,13 +47,20 @@ export function TopBar() {
   return (
     <header className="sticky top-0 z-30 border-b border-border-strong bg-bg-elev/90 backdrop-blur">
       <div className="mx-auto flex max-w-[1400px] items-center gap-6 px-4 py-3 sm:px-6">
-        <div className="title-serif text-base italic text-text">
+        <Link href="/" className="title-serif text-base italic text-text">
           <span className="not-italic font-semibold text-brand">BTC</span>
           <span className="mx-1 text-text-mute">/</span>
           <span className="text-xs uppercase tracking-widest text-text-dim not-italic">
             LIVE · REAL-TIME
           </span>
-        </div>
+        </Link>
+
+        <Link
+          href="/guia"
+          className="hidden sm:inline-flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-text-mute hover:text-brand transition-colors"
+        >
+          <span aria-hidden>§</span> Guía
+        </Link>
 
         <div className="ml-auto flex items-center gap-5 text-xs">
           <div className="hidden lg:flex items-center gap-5 text-text-dim">
