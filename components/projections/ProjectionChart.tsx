@@ -11,7 +11,11 @@ import {
   Filler,
 } from 'chart.js';
 import type { Kline } from '@/lib/types';
-import type { MonteCarloBand, TrendAnalysis } from '@/lib/projections';
+import type { MonteCarloBand } from '@/lib/projections';
+
+interface RegressionShape {
+  regression: { from: number; to: number };
+}
 import { useMemo } from 'react';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler);
@@ -19,7 +23,7 @@ ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip,
 interface Props {
   history: Kline[];
   bands: MonteCarloBand[];
-  trend?: TrendAnalysis | null;
+  trend?: RegressionShape | null;
   assetLabel: string;
 }
 
