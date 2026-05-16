@@ -19,6 +19,12 @@ export interface AssetSpec {
   decimals: number;
   /** Currency prefix for display. */
   quote: 'USD' | 'EUR';
+  /**
+   * If set, this asset is a synthetic inverse of another. The fetcher will
+   * resolve klines/ticker for the base asset id and invert OHLC values so all
+   * indicators run on the inverted series (mirror signals).
+   */
+  invertOf?: string;
 }
 
 // Canonical roster for the explicit pages (BTC home, EURUSD page). Other
@@ -59,6 +65,16 @@ export const ASSETS: Record<string, AssetSpec> = {
     hasNews: false,
     decimals: 4,
     quote: 'USD',
+  },
+  USDEUR: {
+    id: 'USDEUR',
+    name: 'US Dollar / Euro',
+    symbol: 'USD/EUR',
+    type: 'fx',
+    invertOf: 'EURUSD',
+    hasNews: false,
+    decimals: 4,
+    quote: 'EUR',
   },
 };
 

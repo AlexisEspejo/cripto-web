@@ -76,9 +76,11 @@ export default function ProjectionsPage() {
     result.push({ id: 'BTC', label: 'BTC · Bitcoin' });
     result.push({ id: 'ETH', label: 'ETH · Ethereum' });
     result.push({ id: 'EURUSD', label: 'EUR/USD · Forex' });
+    result.push({ id: 'USDEUR', label: 'USD/EUR · Forex (inverso)' });
     seen.add('BTC');
     seen.add('ETH');
     seen.add('EURUSD');
+    seen.add('USDEUR');
     for (const m of markets.data?.items ?? []) {
       if (seen.has(m.symbol)) continue;
       seen.add(m.symbol);
