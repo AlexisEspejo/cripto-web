@@ -35,7 +35,7 @@ export function PriceHero({ asset = ASSETS.BTC! }: { asset?: AssetSpec }) {
           {asset.name}: <em>{asset.symbol}</em> en <em>tiempo real</em>.
         </h1>
         <p className="mt-4 max-w-xl text-sm leading-relaxed text-text-dim">
-          Consenso técnico de {asset.hasNews ? '10 indicadores + sentiment' : '10 indicadores'},
+          Consenso técnico de {asset.hasNews ? '11 indicadores + sentiment' : '11 indicadores'},
           señales multi-timeframe, charts en vivo. Datos vía{' '}
           {asset.type === 'fx' ? 'Yahoo Finance' : 'Binance / Kraken / CoinGecko'}.
         </p>

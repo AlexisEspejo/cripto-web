@@ -57,23 +57,23 @@ describe('generateConsensus', () => {
     expect(changed).toBe(true);
   });
 
-  it('score is bounded in [-20, +20] without sentiment', () => {
+  it('score is bounded in [-22, +22] without sentiment', () => {
     const closes = Array.from({ length: 260 }, (_, i) => 100 + i * 0.3);
     const res = generateConsensus(makeKlines(closes));
-    expect(res.totalScore).toBeGreaterThanOrEqual(-20);
-    expect(res.totalScore).toBeLessThanOrEqual(20);
-    expect(res.buyCount + res.sellCount + res.neutralCount).toBe(10);
-    expect(res.maxScore).toBe(20);
+    expect(res.totalScore).toBeGreaterThanOrEqual(-22);
+    expect(res.totalScore).toBeLessThanOrEqual(22);
+    expect(res.buyCount + res.sellCount + res.neutralCount).toBe(11);
+    expect(res.maxScore).toBe(22);
     expect(res.includesSentiment).toBe(false);
   });
 
-  it('with sentiment included → 11 indicators, maxScore 22, signal mapped', () => {
+  it('with sentiment included → 12 indicators, maxScore 24, signal mapped', () => {
     const closes = Array.from({ length: 260 }, (_, i) => 100 + i * 0.3);
     const res = generateConsensus(makeKlines(closes), { newsNetScore: 50 });
-    expect(res.indicators).toHaveLength(11);
-    expect(res.maxScore).toBe(22);
+    expect(res.indicators).toHaveLength(12);
+    expect(res.maxScore).toBe(24);
     expect(res.includesSentiment).toBe(true);
-    const last = res.indicators[10];
+    const last = res.indicators[11];
     expect(last?.name).toBe('Sentiment Noticias');
     expect(last?.signal).toBe(2);
   });
@@ -90,7 +90,7 @@ describe('generateConsensus', () => {
     ];
     for (const { ns, expected } of cases) {
       const res = generateConsensus(makeKlines(closes), { newsNetScore: ns });
-      const last = res.indicators[10];
+      const last = res.indicators[11];
       expect(last?.signal).toBe(expected);
     }
   });
@@ -109,10 +109,11 @@ describe('generateConsensus', () => {
     expect(Math.abs(res.totalScore)).toBeLessThan(12);
   });
 
-  it('returns 10 indicators', () => {
+  it('returns 11 indicators', () => {
     const closes = Array.from({ length: 260 }, (_, i) => 100 + i * 0.3);
     const res = generateConsensus(makeKlines(closes));
-    expect(res.indicators).toHaveLength(10);
+    expect(res.indicators).toHaveLength(11);
+    expect(res.indicators[10]?.name).toBe('Liquidez (Pull)');
   });
 
   it('computes operational levels', () => {

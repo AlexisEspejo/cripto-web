@@ -9,15 +9,10 @@ import {
   adx,
   mfi,
   ichimoku,
+  liquidity,
 } from './indicators';
 import { fmtUSD } from './formatters';
-import type {
-  ConsensusResult,
-  IndicatorResult,
-  IndicatorSignal,
-  Kline,
-  Verdict,
-} from './types';
+import type { ConsensusResult, IndicatorResult, IndicatorSignal, Kline, Verdict } from './types';
 
 export interface ConsensusOptions {
   /** Net news sentiment score in `[-100, +100]` from the news aggregator. Optional. */
@@ -39,13 +34,10 @@ const labelFor = (s: IndicatorSignal): string => {
   }
 };
 
-const last = <T,>(arr: ReadonlyArray<T>): T | undefined => arr[arr.length - 1];
-const prev = <T,>(arr: ReadonlyArray<T>): T | undefined => arr[arr.length - 2];
+const last = <T>(arr: ReadonlyArray<T>): T | undefined => arr[arr.length - 1];
+const prev = <T>(arr: ReadonlyArray<T>): T | undefined => arr[arr.length - 2];
 
-export function generateConsensus(
-  daily: Kline[],
-  opts: ConsensusOptions = {},
-): ConsensusResult {
+export function generateConsensus(daily: Kline[], opts: ConsensusOptions = {}): ConsensusResult {
   const closes = daily.map(k => k.close);
   const highs = daily.map(k => k.high);
   const lows = daily.map(k => k.low);
@@ -186,7 +178,14 @@ export function generateConsensus(
   {
     let s: IndicatorSignal = 0;
     let n = 'Entre EMAs';
-    if (pe50 != null && pe200 != null && e50 != null && e200 != null && pe50 <= pe200 && e50 > e200) {
+    if (
+      pe50 != null &&
+      pe200 != null &&
+      e50 != null &&
+      e200 != null &&
+      pe50 <= pe200 &&
+      e50 > e200
+    ) {
       s = 2;
       n = 'GOLDEN CROSS reciente';
     } else if (
@@ -345,7 +344,46 @@ export function generateConsensus(
     push('Ichimoku (9/26)', t != null ? fmtUSD(t) : '--', s, n);
   }
 
-  // 11 · Sentiment de noticias (opcional, soft blend)
+  // 11 · Liquidez · pull / barrido de liquidez
+  const liq = liquidity(highs, lows, closes, volumes, 20);
+  const lLiq = last(liq.pull);
+  const lEvent = last(liq.event);
+  {
+    let s: IndicatorSignal = 0;
+    let n = 'Precio dentro del rango de liquidez';
+    if (lLiq != null && lEvent != null) {
+      switch (lEvent) {
+        case 'bull-sweep':
+          s = lLiq >= 60 ? 2 : 1;
+          n = 'Barrido de liquidez vendedora + reclaim · reversión alcista';
+          break;
+        case 'bear-sweep':
+          s = lLiq <= -60 ? -2 : -1;
+          n = 'Barrido de liquidez compradora + rechazo · reversión bajista';
+          break;
+        case 'bull-breakout':
+          s = lLiq >= 50 ? 2 : 1;
+          n = 'Liquidez compradora tomada · continuación alcista';
+          break;
+        case 'bear-breakdown':
+          s = lLiq <= -50 ? -2 : -1;
+          n = 'Liquidez vendedora tomada · continuación bajista';
+          break;
+        default:
+          s = 0;
+          n =
+            lLiq > 5
+              ? 'Imán de liquidez hacia máximos'
+              : lLiq < -5
+                ? 'Imán de liquidez hacia mínimos'
+                : 'Precio dentro del rango de liquidez';
+      }
+    }
+    const liqValue = lLiq != null ? `${lLiq >= 0 ? '+' : ''}${lLiq.toFixed(0)}` : '--';
+    push('Liquidez (Pull)', liqValue, s, n);
+  }
+
+  // 12 · Sentiment de noticias (opcional, soft blend)
   if (opts.newsNetScore != null) {
     const ns = Math.max(-100, Math.min(100, Math.round(opts.newsNetScore)));
     let s: IndicatorSignal = 0;
@@ -383,8 +421,7 @@ export function generateConsensus(
   if (totalScore >= strongThreshold) {
     verdict = 'STRONG_BUY';
     verdictClass = 'strong-buy';
-    verdictNote =
-      'Consenso técnico fuertemente alcista · setup de compra alta convicción.';
+    verdictNote = 'Consenso técnico fuertemente alcista · setup de compra alta convicción.';
   } else if (totalScore >= 5) {
     verdict = 'BUY';
     verdictClass = 'buy';
@@ -392,8 +429,7 @@ export function generateConsensus(
   } else if (totalScore <= -strongThreshold) {
     verdict = 'STRONG_SELL';
     verdictClass = 'strong-sell';
-    verdictNote =
-      'Consenso técnico fuertemente bajista · setup de venta alta convicción.';
+    verdictNote = 'Consenso técnico fuertemente bajista · setup de venta alta convicción.';
   } else if (totalScore <= -5) {
     verdict = 'SELL';
     verdictClass = 'sell';
@@ -401,8 +437,7 @@ export function generateConsensus(
   } else {
     verdict = 'HOLD';
     verdictClass = 'hold';
-    verdictNote =
-      'Sin consenso direccional · mercado en zona neutral, esperar señales.';
+    verdictNote = 'Sin consenso direccional · mercado en zona neutral, esperar señales.';
   }
 
   const levels = computeLevels(lp, totalScore, bl ?? null, bu ?? null, e50);
@@ -434,16 +469,8 @@ export function computeLevels(
   const isBuy = totalScore >= 5;
   const isSell = totalScore <= -5;
 
-  const lowerCandidates = [
-    bbLower ?? Infinity,
-    ema50 ?? Infinity,
-    price * 0.94,
-  ];
-  const upperCandidates = [
-    bbUpper ?? -Infinity,
-    ema50 ?? -Infinity,
-    price * 1.06,
-  ];
+  const lowerCandidates = [bbLower ?? Infinity, ema50 ?? Infinity, price * 0.94];
+  const upperCandidates = [bbUpper ?? -Infinity, ema50 ?? -Infinity, price * 1.06];
   const stopFloor = Math.min(...lowerCandidates);
   const stopCeil = Math.max(...upperCandidates);
 

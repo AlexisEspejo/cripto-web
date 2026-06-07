@@ -6,7 +6,7 @@ producción del MVP HTML monolítico (`reference/btc_live_terminal.html`).
 
 Cinco secciones (§01-§05):
 
-1. **Consenso técnico** · veredicto de 10 indicadores → COMPRAR / VENDER / MANTENER + niveles operativos.
+1. **Consenso técnico** · veredicto de 11 indicadores → COMPRAR / VENDER / MANTENER + niveles operativos.
 2. **Señales multi-timeframe** · 1H · 4H · 1D · 1W, cada uno con score y drivers.
 3. **Indicadores clave** · RSI, MACD, EMA 50, EMA 200.
 4. **Charts** · BTC + EMA50/EMA200 con selector de timeframe + RSI(14).
@@ -79,7 +79,7 @@ app/                    # Routes + API routes
 components/terminal/    # Componentes de la UI (TopBar, VerdictPanel, ...)
 components/providers/   # QueryProvider
 hooks/                  # usePrice, useKlines, useNews, useConsensus
-lib/indicators/         # 10 indicadores como funciones puras
+lib/indicators/         # 11 indicadores como funciones puras
 lib/consensus.ts        # Motor de veredicto
 lib/signals.ts          # Señales por timeframe
 lib/news-sentiment.ts   # Clasificador keyword-based

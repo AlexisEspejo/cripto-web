@@ -31,7 +31,7 @@ export async function generateMetadata({ params }: RouteParams): Promise<Metadat
   if (!asset) return { title: 'Asset not found · BTC Terminal' };
   return {
     title: `${asset.name} (${asset.symbol}) · análisis técnico · BTC Terminal`,
-    description: `Análisis técnico en tiempo real para ${asset.name}: 10 indicadores, señales multi-timeframe, charts y consenso.`,
+    description: `Análisis técnico en tiempo real para ${asset.name}: 11 indicadores, señales multi-timeframe, charts y consenso.`,
   };
 }
 
