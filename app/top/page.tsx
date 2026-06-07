@@ -21,7 +21,7 @@ export default function TopPage() {
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-text-dim">
             Top 100 por capitalización de CoinGecko, filtrando stablecoins y
             tokens envueltos 1:1 (USDT, USDC, WBTC, stETH, …). Clic en cualquiera
-            para ver su análisis técnico completo: 10 indicadores + sentiment de
+            para ver su análisis técnico completo: 11 indicadores + sentiment de
             noticias, señales multi-timeframe, charts y niveles operativos.
           </p>
           {isError && (

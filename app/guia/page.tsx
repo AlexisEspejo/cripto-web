@@ -4,7 +4,7 @@ import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'Guía · Cómo se calcula el análisis · BTC Terminal',
   description:
-    'Metodología completa del terminal: cómo se calculan los 10 indicadores técnicos, el motor de consenso, los niveles operativos y el sentiment de noticias.',
+    'Metodología completa del terminal: cómo se calculan los 11 indicadores técnicos, el motor de consenso, los niveles operativos y el sentiment de noticias.',
 };
 
 export default function GuiaPage() {
@@ -42,10 +42,10 @@ export default function GuiaPage() {
           toda la información relevante ya está en el precio.
         </p>
         <p>
-          Sobre el precio aplicamos diez indicadores técnicos estándar de la
+          Sobre el precio aplicamos once indicadores técnicos estándar de la
           industria, traducimos cada uno a una señal discreta de cinco niveles{' '}
           <code className="font-mono">[-2, -1, 0, +1, +2]</code>, y sumamos.
-          Una undécima señal opcional viene de las noticias.
+          Una duodécima señal opcional viene de las noticias.
         </p>
         <p>
           La salida es un <strong className="text-text">veredicto</strong> en
@@ -55,7 +55,7 @@ export default function GuiaPage() {
         </p>
       </Section>
 
-      <Section id="indicadores" eyebrow="§ 02" title="Los 10 indicadores técnicos">
+      <Section id="indicadores" eyebrow="§ 02" title="Los 11 indicadores técnicos">
         <p>
           Cada uno vive como <em>función pura</em> en{' '}
           <code className="font-mono">lib/indicators/</code> y se calcula sobre
@@ -195,16 +195,29 @@ export default function GuiaPage() {
             { range: 'Cruce Tenkan bajo Kijun', s: -2, note: 'Cruce bajista Tenkan/Kijun' },
           ]}
         />
+
+        <IndicatorBlock
+          n={11}
+          name="Liquidez (Pull) · barrido de liquidez"
+          formula="swing high/low de las 20 velas previas = pools de liquidez; el barrido + reclaim (ponderado por volumen) marca reversión o continuación"
+          rules={[
+            { range: 'Barre el mínimo y reclama (close > swing low)', s: 2, note: 'Barrido de liquidez vendedora · reversión alcista' },
+            { range: 'Cierra sobre el máximo del rango', s: 1, note: 'Liquidez compradora tomada · continuación alcista' },
+            { range: 'Dentro del rango de liquidez', s: 0, note: 'Imán hacia el pool más cercano' },
+            { range: 'Cierra bajo el mínimo del rango', s: -1, note: 'Liquidez vendedora tomada · continuación bajista' },
+            { range: 'Barre el máximo y rechaza (close < swing high)', s: -2, note: 'Barrido de liquidez compradora · reversión bajista' },
+          ]}
+        />
       </Section>
 
       <Section
         id="sentiment"
         eyebrow="§ 03"
-        title="Sentiment de noticias · indicador #11 (opcional)"
+        title="Sentiment de noticias · indicador #12 (opcional)"
       >
         <p>
           Para enriquecer la lectura técnica, agregamos un{' '}
-          <strong className="text-text">undécimo indicador</strong> derivado del
+          <strong className="text-text">duodécimo indicador</strong> derivado del
           feed de noticias. Cada artículo se clasifica como{' '}
           <span className="text-up">bull</span>,{' '}
           <span className="text-down">bear</span> o{' '}
@@ -238,18 +251,18 @@ export default function GuiaPage() {
           Importante: el clasificador es <strong>una heurística</strong>. No
           entiende ironía, contexto editorial ni rumor markets. Por eso lo
           tratamos como un peso <em>blend</em> que solo puede empujar el
-          veredicto ±2 puntos sobre un score técnico que ya va de −20 a +20.
+          veredicto ±2 puntos sobre un score técnico que ya va de −22 a +22.
           Cuando el sentiment falla o no hay noticias, el consenso vuelve
-          al modo 10-indicadores sin penalización.
+          al modo 11-indicadores sin penalización.
         </p>
       </Section>
 
       <Section id="motor" eyebrow="§ 04" title="El motor de consenso">
         <p>
-          Sumamos las señales discretas de los 10 (u 11) indicadores. El{' '}
+          Sumamos las señales discretas de los 11 (o 12) indicadores. El{' '}
           <strong className="text-text">score total</strong> resultante va de{' '}
-          <code className="font-mono">−20</code> a <code className="font-mono">+20</code>{' '}
-          (o <code className="font-mono">±22</code> con sentiment). El umbral{' '}
+          <code className="font-mono">−22</code> a <code className="font-mono">+22</code>{' '}
+          (o <code className="font-mono">±24</code> con sentiment). El umbral{' '}
           <strong>STRONG</strong> escala con el número de indicadores activos
           (60 % del máximo posible):
         </p>
@@ -257,20 +270,20 @@ export default function GuiaPage() {
           <table className="w-full text-xs">
             <thead>
               <tr className="bg-bg-card text-text-mute uppercase tracking-wider text-[10px]">
-                <th className="px-3 py-2 text-left">Score · 10 indicadores</th>
                 <th className="px-3 py-2 text-left">Score · 11 indicadores</th>
+                <th className="px-3 py-2 text-left">Score · 12 indicadores</th>
                 <th className="px-3 py-2 text-left">Verdict</th>
               </tr>
             </thead>
             <tbody className="bg-bg-elev text-text-dim">
               <tr className="border-t border-border">
-                <td className="px-3 py-2 tabular-nums">≥ +12</td>
                 <td className="px-3 py-2 tabular-nums">≥ +14</td>
+                <td className="px-3 py-2 tabular-nums">≥ +15</td>
                 <td className="px-3 py-2 text-up font-semibold">STRONG BUY</td>
               </tr>
               <tr className="border-t border-border">
-                <td className="px-3 py-2 tabular-nums">+5 a +11</td>
                 <td className="px-3 py-2 tabular-nums">+5 a +13</td>
+                <td className="px-3 py-2 tabular-nums">+5 a +14</td>
                 <td className="px-3 py-2 text-up font-semibold">BUY</td>
               </tr>
               <tr className="border-t border-border">
@@ -279,13 +292,13 @@ export default function GuiaPage() {
                 <td className="px-3 py-2 text-warn font-semibold">HOLD</td>
               </tr>
               <tr className="border-t border-border">
-                <td className="px-3 py-2 tabular-nums">−11 a −5</td>
                 <td className="px-3 py-2 tabular-nums">−13 a −5</td>
+                <td className="px-3 py-2 tabular-nums">−14 a −5</td>
                 <td className="px-3 py-2 text-down font-semibold">SELL</td>
               </tr>
               <tr className="border-t border-border">
-                <td className="px-3 py-2 tabular-nums">≤ −12</td>
                 <td className="px-3 py-2 tabular-nums">≤ −14</td>
+                <td className="px-3 py-2 tabular-nums">≤ −15</td>
                 <td className="px-3 py-2 text-down font-semibold">STRONG SELL</td>
               </tr>
             </tbody>
@@ -444,7 +457,7 @@ export default function GuiaPage() {
 function Toc() {
   const items = [
     ['#filosofia', 'Filosofía'],
-    ['#indicadores', 'Los 10 indicadores'],
+    ['#indicadores', 'Los 11 indicadores'],
     ['#sentiment', 'Sentiment de noticias'],
     ['#motor', 'Motor de consenso'],
     ['#niveles', 'Niveles operativos'],

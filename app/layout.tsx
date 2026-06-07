@@ -22,7 +22,7 @@ export const metadata: Metadata = {
   metadataBase: new URL('https://btc-terminal.local'),
   title: 'BTC Terminal · Live Bitcoin Technical Analysis',
   description:
-    'Real-time Bitcoin technical analysis terminal — consensus de 10 indicadores, señales multi-timeframe, charts y feed de noticias clasificado por sentiment.',
+    'Real-time Bitcoin technical analysis terminal — consensus de 11 indicadores, señales multi-timeframe, charts y feed de noticias clasificado por sentiment.',
   keywords: ['Bitcoin', 'BTC', 'technical analysis', 'crypto', 'terminal', 'RSI', 'MACD'],
   openGraph: {
     title: 'BTC Terminal',

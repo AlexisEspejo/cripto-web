@@ -5,7 +5,7 @@ relevancia.
 
 ## 1 · Indicadores como funciones puras, una por archivo
 
-Cada uno de los 10 indicadores vive en `lib/indicators/<nombre>.ts`, sin
+Cada uno de los 11 indicadores vive en `lib/indicators/<nombre>.ts`, sin
 side-effects ni estado. Esto:
 
 - Permite testear con Vitest sin tocar DOM ni mocks de fetch.
@@ -167,17 +167,17 @@ diseño escogido:
 - **Opcional**: `generateConsensus(klines, { newsNetScore })`. Sin esa
   opción la firma vieja sigue funcionando idéntica.
 - **Peso reducido**: el sentiment mapea a `[-2, +2]` igual que cualquier
-  otro indicador, así que solo puede empujar el score ±2 sobre los ±20
+  otro indicador, así que solo puede empujar el score ±2 sobre los ±22
   técnicos. Imposible que un día de hype "rally rally rally" voltee un
   verdict técnicamente bearish.
 - **Thresholds escalan**: el umbral STRONG se calcula como
-  `ceil(maxScore × 0.6)`, así que con 10 indicadores STRONG = 12 (60 % de
-  20) y con 11 indicadores STRONG = 14 (60 % de 22). Mantiene el rigor.
+  `ceil(maxScore × 0.6)`, así que con 11 indicadores STRONG = 14 (60 % de
+  22) y con 12 indicadores STRONG = 15 (60 % de 24). Mantiene el rigor.
 - **Fallback transparente**: si las noticias fallan o se quedan vacías,
-  `getNewsNetScore()` devuelve `null` y el consenso vuelve a 10
+  `getNewsNetScore()` devuelve `null` y el consenso vuelve a 11
   indicadores sin que el usuario lo note.
-- **Visible en UI**: el panel muestra `−22 / +22 +sentiment` cuando está
-  activo y la fila #11 aparece en la tabla de indicadores. Auditabilidad.
+- **Visible en UI**: el panel muestra `−24 / +24 +sentiment` cuando está
+  activo y la fila #12 aparece en la tabla de indicadores. Auditabilidad.
 
 Cualquier alternativa más sofisticada (NLP transformer, sentiment
 ponderado por reach de la fuente, etc.) está fuera del scope de v0.2.0.
@@ -191,7 +191,7 @@ Documentar el algoritmo en una página accesible cumple dos objetivos:
 - **Defensa legal**: refuerza el disclaimer mostrando que no hay magia,
   solo agregación de indicadores estándar de la industria.
 
-Estructura: 9 secciones (filosofía, los 10 indicadores con tablas de
+Estructura: 9 secciones (filosofía, los 11 indicadores con tablas de
 mapeo, sentiment, motor de consenso, niveles operativos, multi-timeframe,
 alertas, fuentes de datos, limitaciones honestas). Server-rendered, sin
 JS de cliente. Linkeada desde TopBar y Footer.

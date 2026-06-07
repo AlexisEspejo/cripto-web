@@ -6,6 +6,18 @@ versioning [SemVer](https://semver.org/).
 
 ## [Unreleased]
 
+### Added (liquidez)
+
+- **Indicador de liquidez · "pull de liquidez"** (`lib/indicators/liquidity.ts`):
+  detector de barridos de liquidez (liquidity sweeps) sobre OHLCV. Identifica
+  los pools de stops más allá de los swing highs/lows de las últimas 20 velas
+  y clasifica cada vela en `bull-sweep` / `bear-sweep` / `bull-breakout` /
+  `bear-breakdown` / `range`, ponderado por volumen.
+- Integrado como **parámetro #11 del consenso** (`lib/consensus.ts`), aplicado
+  automáticamente a **todos los activos** (cripto, top 100, EUR/USD). El score
+  técnico base pasa de ±20 a ±22 (±24 con sentiment).
+- Documentado en `/guia` y testeado en `tests/indicators/liquidity.test.ts`.
+
 ### Added (multi-asset)
 
 - **Asset registry** (`lib/asset-registry.ts`) con specs canónicas y un

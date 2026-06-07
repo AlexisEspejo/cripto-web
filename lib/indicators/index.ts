@@ -9,3 +9,4 @@ export { cci } from './cci';
 export { adx, type ADXResult } from './adx';
 export { mfi } from './mfi';
 export { ichimoku, type IchimokuResult } from './ichimoku';
+export { liquidity, type LiquidityResult, type LiquidityEvent } from './liquidity';
